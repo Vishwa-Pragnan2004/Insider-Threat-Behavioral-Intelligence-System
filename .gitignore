@@ -1,0 +1,124 @@
+# ============================================================
+# ITBIS — .gitignore
+# ============================================================
+
+# ─── Secrets & Configuration ─────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+secrets/
+
+# ─── Python ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+coverage.xml
+*.coveragerc
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff
+.ruff_cache/
+
+# ─── Node / Frontend ─────────────────────────────────────────
+node_modules/
+dist/
+.next/
+out/
+build/
+.nuxt/
+.cache/
+
+# Vite
+*.local
+
+# ─── IDE ─────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# ─── OS ──────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ─── Docker ──────────────────────────────────────────────────
+# Keep docker-compose.yml but ignore overrides
+docker-compose.override.yml
+docker-compose.local.yml
+
+# ─── Datasets (large files) ──────────────────────────────────
+data/cert/
+data/raw/
+*.csv
+*.parquet
+*.pkl
+*.h5
+*.hdf5
+
+# ─── Logs ────────────────────────────────────────────────────
+logs/
+*.log
+
+# ─── ML Models ───────────────────────────────────────────────
+models/
+*.joblib
+*.pickle
+mlruns/
+
+# ─── Alembic ─────────────────────────────────────────────────
+# Keep migrations, ignore generated files
+!alembic/
+!alembic/versions/
+
+# ─── MinIO / Object Storage local data ───────────────────────
+minio_data/
+
+# ─── Test artifacts ──────────────────────────────────────────
+test-results/
+junit*.xml

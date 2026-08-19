@@ -1,0 +1,2 @@
+# ITBIS shared/exceptions package
+
