@@ -11,9 +11,10 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 # Import all SQLAlchemy models here so Alembic can detect them for autogenerate
-# from app.modules.identity.infrastructure.models import *
+from app.modules.identity.infrastructure.models import *
 # from app.modules.users.infrastructure.models import *
 # etc. — uncomment as modules are implemented
+from app.shared.infrastructure.base_model import Base
 
 from app.core.config import get_settings
 
@@ -28,8 +29,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Target metadata for autogenerate support
-# target_metadata = Base.metadata  # uncomment when models are imported
-target_metadata = None
+target_metadata = Base.metadata
 
 
 # ─── Offline Migrations ──────────────────────────────────────

@@ -1,2 +1,2 @@
-# ITBIS — notifications module
+# ITBIS â€” notifications module
 

@@ -16,12 +16,11 @@ api_v1_router.include_router(
     tags=["Health"],
 )
 
-# ─── Future module routers (will be added in subsequent phases) ──
-# from app.modules.identity.presentation import router as identity_router
+from app.modules.identity.presentation.router import router as identity_router
 # from app.modules.users.presentation import router as users_router
 # from app.modules.activity.presentation import router as activity_router
 # from app.modules.alerts.presentation import router as alerts_router
-# api_v1_router.include_router(identity_router, prefix="/auth", tags=["Identity"])
+api_v1_router.include_router(identity_router, prefix="/auth", tags=["Identity"])
 # api_v1_router.include_router(users_router, prefix="/users", tags=["Users"])
 # api_v1_router.include_router(activity_router, prefix="/activity", tags=["Activity"])
 # api_v1_router.include_router(alerts_router, prefix="/alerts", tags=["Alerts"])

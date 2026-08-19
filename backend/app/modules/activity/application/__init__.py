@@ -1,2 +1,2 @@
-# ITBIS — activity/application package
+# ITBIS â€” activity/application package
 

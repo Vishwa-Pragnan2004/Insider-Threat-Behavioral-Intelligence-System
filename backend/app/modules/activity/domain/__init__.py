@@ -1,2 +1,2 @@
-# ITBIS — activity/domain package
+# ITBIS â€” activity/domain package
 

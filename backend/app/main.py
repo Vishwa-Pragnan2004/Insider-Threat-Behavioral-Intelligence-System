@@ -13,8 +13,11 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
 
 from app.core.config import get_settings
+from app.core.database import AsyncSessionLocal
 from app.core.logging import configure_logging
+from app.core.redis_client import close_redis, get_redis
 from app.api.v1.router import api_v1_router
+from app.modules.identity.infrastructure.seeders import seed_identity_module
 
 # ─── Configure structured logging ───────────────────────────
 configure_logging()
@@ -35,10 +38,18 @@ async def lifespan(app: FastAPI):
         version=settings.APP_VERSION,
         environment=settings.APP_ENV,
     )
-    # Future: initialise DB pools, Redis, Elasticsearch, Kafka connections here
+    # Initialize connections
+    await get_redis()
+    
+    # Run seeders
+    async with AsyncSessionLocal() as session:
+        await seed_identity_module(session)
+        await session.commit()
+
     yield
     logger.info("ITBIS shutting down")
-    # Future: close connections here
+    # Close connections
+    await close_redis()
 
 
 # ─── FastAPI Application ─────────────────────────────────────

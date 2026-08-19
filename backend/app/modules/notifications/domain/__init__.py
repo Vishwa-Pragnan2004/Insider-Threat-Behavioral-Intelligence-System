@@ -1,2 +1,2 @@
-# ITBIS — notifications/domain package
+# ITBIS â€” notifications/domain package
 
