@@ -143,8 +143,8 @@ class Settings(BaseSettings):
     BEHAVIORAL_BASELINE_DAYS: int = 30
 
     # ─── First Superadmin (seed) ───────────────────────────
-    FIRST_SUPERADMIN_EMAIL: str = "admin@itbis.local"
-    FIRST_SUPERADMIN_PASSWORD: str = "CHANGE_ME"
+    FIRST_SUPERADMIN_EMAIL: str = "admin@itbis-platform.com"  # Valid TLD for EmailStr
+    FIRST_SUPERADMIN_PASSWORD: str = "Admin@ITBIS1"  # Must satisfy strength policy
 
 
 @lru_cache

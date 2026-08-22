@@ -3,8 +3,6 @@ ITBIS — Identity Module: Redis Token Store
 Implements IRefreshTokenStore using Redis.
 """
 
-from typing import cast
-
 import redis.asyncio as aioredis
 from redis.asyncio import Redis
 
@@ -16,6 +14,9 @@ class RedisTokenStore(IRefreshTokenStore):
     Stores refresh tokens in Redis.
     Uses the JTI as the key and the User ID as the value.
     Sets a TTL on the key matching the token's expiration.
+
+    NOTE: The Redis client MUST be configured with decode_responses=True so
+    that get() / smembers() return str, not bytes.
     """
 
     def __init__(self, redis_client: Redis) -> None:
@@ -27,11 +28,12 @@ class RedisTokenStore(IRefreshTokenStore):
         key = f"{self._prefix}{jti}"
         user_key = f"{self._user_index_prefix}{user_id}"
 
-        # Use a transaction (pipeline) to ensure both keys are set
+        # Use a pipeline to batch the three writes atomically.
+        # fakeredis supports pipeline(transaction=True) with the same semantics.
         async with self.redis.pipeline(transaction=True) as pipe:
-            pipe.setex(key, ttl_seconds, user_id)
-            pipe.sadd(user_key, jti)
-            pipe.expire(user_key, ttl_seconds)  # Renew user index TTL
+            pipe.set(key, user_id, ex=ttl_seconds)  # store JTI → user_id with TTL
+            pipe.sadd(user_key, jti)                # add JTI to user's set
+            pipe.expire(user_key, ttl_seconds)       # renew set TTL
             await pipe.execute()
 
     async def is_valid(self, jti: str) -> bool:
@@ -41,31 +43,28 @@ class RedisTokenStore(IRefreshTokenStore):
 
     async def revoke(self, jti: str) -> None:
         key = f"{self._prefix}{jti}"
-        
-        # We need the user_id to clean up the set
-        user_id_bytes = await self.redis.get(key)
-        
+
+        # get() returns str when decode_responses=True, None if missing
+        user_id = await self.redis.get(key)
+
         async with self.redis.pipeline(transaction=True) as pipe:
             pipe.delete(key)
-            if user_id_bytes:
-                user_id_str = cast(bytes, user_id_bytes).decode('utf-8')
-                user_key = f"{self._user_index_prefix}{user_id_str}"
+            if user_id:
+                user_key = f"{self._user_index_prefix}{user_id}"
                 pipe.srem(user_key, jti)
             await pipe.execute()
 
     async def revoke_all_for_user(self, user_id: str) -> None:
         user_key = f"{self._user_index_prefix}{user_id}"
-        
-        # Get all JTIs for this user
-        jtis = await self.redis.smembers(user_key)
-        
+
+        # smembers() returns Set[str] when decode_responses=True
+        jtis: set[str] = await self.redis.smembers(user_key)
+
         if not jtis:
             return
-            
-        # Delete all tokens and the index
+
         async with self.redis.pipeline(transaction=True) as pipe:
-            for jti_bytes in jtis:
-                jti_str = cast(bytes, jti_bytes).decode('utf-8')
-                pipe.delete(f"{self._prefix}{jti_str}")
+            for jti in jtis:
+                pipe.delete(f"{self._prefix}{jti}")
             pipe.delete(user_key)
             await pipe.execute()
