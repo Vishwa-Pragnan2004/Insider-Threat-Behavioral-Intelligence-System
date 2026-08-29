@@ -1,28 +1,37 @@
-import { BrowserRouter } from 'react-router-dom';
-import { ThemeProvider, CssBaseline } from '@mui/material';
-import theme from './theme/theme';
-import { AuthProvider } from './hooks/useAuth';
-import AppRoutes from './routes/AppRoutes';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { StatusPage } from '@/pages/StatusPage';
+import { NotFoundPage } from '@/pages/NotFoundPage';
 
 /**
- * App — Root Component
+ * ITBIS — Root Application Component
  *
- * Wraps the application with:
- * 1. BrowserRouter — client-side routing
- * 2. ThemeProvider — MUI dark theme
- * 3. CssBaseline — normalizes browser CSS
- * 4. AuthProvider — authentication context
- * 5. AppRoutes — route definitions
+ * Defines top-level routing for the platform.
+ * Additional route groups will be added as modules are implemented:
+ *
+ * /                    → SOC Dashboard (Phase 11)
+ * /alerts              → Alert Management (Phase 8)
+ * /investigations      → Threat Investigation (Phase 10)
+ * /users               → User Management (Phase 2)
+ * /risk                → Risk Scores (Phase 7)
+ * /activity            → Activity Timeline (Phase 3)
+ * /reports             → Reporting (Phase 12)
+ * /admin               → Administration
+ * /auth/login          → Login (Phase 1)
  */
 export default function App() {
   return (
-    <BrowserRouter>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
-      </ThemeProvider>
-    </BrowserRouter>
+    <Routes>
+      {/* Phase 0 — Foundation placeholder */}
+      <Route path="/" element={<Navigate to="/status" replace />} />
+      <Route path="/status" element={<StatusPage />} />
+
+      {/* Future routes — uncomment as phases are implemented */}
+      {/* <Route path="/dashboard" element={<DashboardPage />} /> */}
+      {/* <Route path="/alerts" element={<AlertsPage />} /> */}
+      {/* <Route path="/investigations/*" element={<InvestigationsPage />} /> */}
+      {/* <Route path="/auth/login" element={<LoginPage />} /> */}
+
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
   );
 }

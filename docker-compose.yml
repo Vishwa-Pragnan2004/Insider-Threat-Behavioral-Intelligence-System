@@ -1,0 +1,212 @@
+# ============================================================
+# ITBIS — Docker Compose (Development Infrastructure)
+# ============================================================
+# Starts all required backing services for local development.
+# The FastAPI backend and React frontend run outside Docker
+# in development for faster iteration (hot-reload).
+# ============================================================
+
+services:
+
+  # ─── PostgreSQL ────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: itbis_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-itbis_db}
+      POSTGRES_USER: ${POSTGRES_USER:-itbis_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-itbis_dev_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - itbis_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-itbis_user} -d ${POSTGRES_DB:-itbis_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── MongoDB ───────────────────────────────────────────────
+  mongodb:
+    image: mongo:7.0
+    container_name: itbis_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-itbis_mongo_user}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-itbis_dev_password}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-itbis_events}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./docker/mongodb/init.js:/docker-entrypoint-initdb.d/init.js
+    networks:
+      - itbis_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Elasticsearch ─────────────────────────────────────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    container_name: itbis_elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-itbis_dev_password}
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - itbis_network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  # ─── Redis ─────────────────────────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    container_name: itbis_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-itbis_dev_password}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - itbis_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-itbis_dev_password}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Zookeeper (Kafka dependency) ──────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: itbis_zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    networks:
+      - itbis_network
+
+  # ─── Kafka ─────────────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: itbis_kafka
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - itbis_network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  # ─── MinIO (Object Storage) ────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: itbis_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-itbis_minio_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-itbis_dev_password}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - itbis_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─── TimescaleDB (Time-Series Analytics) ───────────────────
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: itbis_timescaledb
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${TIMESCALE_DB:-itbis_timeseries}
+      POSTGRES_USER: ${TIMESCALE_USER:-itbis_ts_user}
+      POSTGRES_PASSWORD: ${TIMESCALE_PASSWORD:-itbis_dev_password}
+    ports:
+      - "5433:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+    networks:
+      - itbis_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TIMESCALE_USER:-itbis_ts_user} -d ${TIMESCALE_DB:-itbis_timeseries}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# ─── Networks ──────────────────────────────────────────────────
+networks:
+  itbis_network:
+    driver: bridge
+    name: itbis_network
+
+# ─── Volumes ───────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    name: itbis_postgres_data
+  mongodb_data:
+    name: itbis_mongodb_data
+  elasticsearch_data:
+    name: itbis_elasticsearch_data
+  redis_data:
+    name: itbis_redis_data
+  zookeeper_data:
+    name: itbis_zookeeper_data
+  zookeeper_logs:
+    name: itbis_zookeeper_logs
+  kafka_data:
+    name: itbis_kafka_data
+  minio_data:
+    name: itbis_minio_data
+  timescaledb_data:
+    name: itbis_timescaledb_data
