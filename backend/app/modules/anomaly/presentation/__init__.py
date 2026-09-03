@@ -1,2 +1,1 @@
-# ITBIS — anomaly/presentation package
-
+"""ITBIS — anomaly module: presentation layer."""

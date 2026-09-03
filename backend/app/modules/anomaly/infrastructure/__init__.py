@@ -1,2 +1,1 @@
-# ITBIS — anomaly/infrastructure package
-
+"""ITBIS — anomaly module: infrastructure layer."""

@@ -1,2 +1,1 @@
-# ITBIS — anomaly/domain package
-
+"""ITBIS — anomaly module: domain layer."""

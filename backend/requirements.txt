@@ -18,8 +18,8 @@ asyncpg==0.30.0
 alembic==1.14.0
 
 # ─── MongoDB ─────────────────────────────────────────────────
-motor==3.6.0
-pymongo==4.10.1
+motor>=3.6,<4
+pymongo>=4.9,<4.10
 
 # ─── Elasticsearch ───────────────────────────────────────────
 elasticsearch[async]==8.16.0
@@ -35,7 +35,13 @@ minio==7.2.11
 
 # ─── Authentication & Security ───────────────────────────────
 python-jose[cryptography]==3.3.0
+# passlib 1.7.4 + bcrypt 4.x are incompatible: bcrypt 4.0 removed the
+# `__about__` attribute that passlib probes during its one-time
+# version-detection step.  The probe falls back silently and hashing
+# still works, but the warning pollutes every test run.  Pin bcrypt
+# to the last 3.x release which still exposes `__about__`.
 passlib[bcrypt]==1.7.4
+bcrypt==3.2.2
 python-multipart==0.0.18
 
 # ─── Logging ─────────────────────────────────────────────────
@@ -48,10 +54,16 @@ pytz==2024.2
 orjson==3.10.12
 tenacity==9.0.0
 
-# ─── ML & Data (placeholders — to be activated in ML phases) ─
-# numpy==1.26.4
-# pandas==2.2.3
-# scikit-learn==1.5.2
+# ─── ML & Data (Phase 5 anomaly detection) ─────────────────
+# The shipped model artifact was built with scikit-learn 1.6.1.
+# Python 3.14 in our dev env does not have a pre-built wheel for 1.6.x
+# (only 1.7.2+); we pin to 1.7.2 which is pickle-compatible enough to
+# unpickle and run the artifact.  Production must use a Python version
+# for which 1.6.1 wheels exist (3.11 / 3.12) and pin accordingly.
+numpy>=1.26,<3
+pandas>=2.2,<3
+joblib>=1.4,<2
+scikit-learn>=1.7,<1.8
 
 # ─── Testing ─────────────────────────────────────────────────
 pytest==8.3.4

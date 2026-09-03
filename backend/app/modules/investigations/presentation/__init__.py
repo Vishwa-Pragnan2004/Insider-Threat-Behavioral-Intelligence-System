@@ -1,2 +1,1 @@
-# ITBIS — investigations/presentation package
-
+"""ITBIS — investigations module: presentation layer."""

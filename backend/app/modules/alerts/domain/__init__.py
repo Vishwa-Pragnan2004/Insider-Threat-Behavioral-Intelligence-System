@@ -1,2 +1,1 @@
-# ITBIS — alerts/domain package
-
+"""ITBIS — alerts module: domain layer."""

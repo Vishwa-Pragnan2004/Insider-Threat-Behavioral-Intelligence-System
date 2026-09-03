@@ -1,2 +1,1 @@
-# ITBIS — alerts/presentation package
-
+"""ITBIS — alerts module: presentation layer."""

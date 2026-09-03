@@ -1,2 +1,1 @@
-# ITBIS — anomaly/application package
-
+"""ITBIS — anomaly module: application layer."""

@@ -1,2 +1,1 @@
-# ITBIS — investigations/infrastructure package
-
+"""ITBIS — investigations module: infrastructure layer."""

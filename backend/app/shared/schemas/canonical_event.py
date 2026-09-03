@@ -174,3 +174,16 @@ class CanonicalEvent(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
     model_config = {"use_enum_values": True}
+
+    # ─── Helpers ───────────────────────────────────────────
+
+    def idempotency_key(self) -> str:
+        """
+        Stable, source-derived idempotency key. Used by ingest endpoints
+        to dedupe retried agent submissions.
+
+        Format: '<source_dataset>:<raw_event_id>'.
+        """
+        if self.raw_event_id:
+            return f"{self.source_dataset}:{self.raw_event_id}"
+        return f"{self.source_dataset}:{self.event_id}"

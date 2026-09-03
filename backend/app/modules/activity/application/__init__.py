@@ -1,2 +1,0 @@
-# ITBIS — activity/application package
-

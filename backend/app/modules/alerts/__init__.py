@@ -1,2 +1,1 @@
-# ITBIS — alerts module
-
+"""ITBIS — alerts module."""

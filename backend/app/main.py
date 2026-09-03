@@ -15,6 +15,7 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from app.core.config import get_settings
 from app.core.database import AsyncSessionLocal
 from app.core.logging import configure_logging
+from app.core.mongo_client import close_mongo
 from app.core.redis_client import close_redis, get_redis
 from app.api.v1.router import api_v1_router
 from app.modules.identity.infrastructure.seeders import seed_identity_module
@@ -50,6 +51,7 @@ async def lifespan(app: FastAPI):
     logger.info("ITBIS shutting down")
     # Close connections
     await close_redis()
+    await close_mongo()
 
 
 # ─── FastAPI Application ─────────────────────────────────────

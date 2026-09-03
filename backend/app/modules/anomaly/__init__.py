@@ -1,2 +1,1 @@
-# ITBIS — anomaly module
-
+"""ITBIS — anomaly module."""

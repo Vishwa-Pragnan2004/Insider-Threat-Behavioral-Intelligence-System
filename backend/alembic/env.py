@@ -12,6 +12,11 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 # Import all SQLAlchemy models here so Alembic can detect them for autogenerate
 from app.modules.identity.infrastructure.models import *
+from app.modules.activity.infrastructure.models import (
+    IngestionErrorModel,
+    IngestionJobModel,
+)
+from app.modules.behavioral.infrastructure.models import BehavioralBaselineModel
 # from app.modules.users.infrastructure.models import *
 # etc. — uncomment as modules are implemented
 from app.shared.infrastructure.base_model import Base

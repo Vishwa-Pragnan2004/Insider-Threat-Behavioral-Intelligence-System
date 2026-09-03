@@ -1,2 +1,1 @@
-# ITBIS — investigations/domain package
-
+"""ITBIS — investigations module: domain layer."""

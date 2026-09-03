@@ -1,2 +1,1 @@
-# ITBIS — investigations module
-
+"""ITBIS — investigations module."""

@@ -1,2 +1,1 @@
-# ITBIS — alerts/infrastructure package
-
+"""ITBIS — alerts module: infrastructure layer."""
