@@ -228,7 +228,22 @@ async def test_me_with_refresh_token_rejected(async_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_refresh_token_flow(async_client: AsyncClient):
-    """A valid refresh token returns new access + refresh tokens."""
+    """A valid refresh token returns new access + refresh tokens.
+
+    Invariants guaranteed by the server:
+      - The response is 200 with both `access_token` and `refresh_token`.
+      - The new refresh token has a fresh `jti` and therefore a different
+        string from the old one (refresh token rotation is enforced).
+      - The new access token is signed with the same secret and contains
+        the user's claims; the new access token is itself a valid token
+        for the protected /me endpoint.
+
+    Note: the access token *string* is allowed to be byte-identical to the
+    previous one if the two are issued within the same wall-clock second
+    (HS256 over identical payload is deterministic). The rotation
+    invariant for refresh tokens is the meaningful property, and it is
+    tested separately by `test_refresh_token_rotation`.
+    """
     await register_user(async_client)
     login_r = await login_user(async_client)
     old_refresh = login_r.json()["refresh_token"]
@@ -239,9 +254,28 @@ async def test_refresh_token_flow(async_client: AsyncClient):
     body = r.json()
     assert "access_token" in body
     assert "refresh_token" in body
-    # New tokens should differ from old ones
-    assert body["access_token"] != old_access
+    # The new refresh token is a different string (new jti).
     assert body["refresh_token"] != old_refresh
+    # The new access token must be usable: hitting /me with it must succeed.
+    me = await async_client.get(
+        f"{BASE}/me",
+        headers={"Authorization": f"Bearer {body['access_token']}"},
+    )
+    assert me.status_code == 200, me.text
+    # The new access token encodes the same user as the old one.
+    new_access_sub = token_service.decode_token(
+        body["access_token"], expected_type="access"
+    )["sub"]
+    assert me.json()["id"] == new_access_sub
+    # And the old access token must still be valid too (the old refresh
+    # token being revoked does not retroactively invalidate the access
+    # token that was issued alongside it).
+    me2 = await async_client.get(
+        f"{BASE}/me",
+        headers={"Authorization": f"Bearer {old_access}"},
+    )
+    assert me2.status_code == 200, me2.text
+    assert me2.json()["id"] == new_access_sub
 
 
 @pytest.mark.asyncio
