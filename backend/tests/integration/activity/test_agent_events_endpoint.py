@@ -8,8 +8,13 @@ These tests:
 
 The full server test stack (identity seed, auth, mongo, etc.) lives in
 tests/integration/activity/conftest.py. We reuse its fixtures.
+
+NOTE: These tests require the `itbis_agent` package which is a separate
+Windows endpoint agent. They will be skipped if the package is not installed.
 """
 from __future__ import annotations
+
+import sys
 
 import uuid
 from collections.abc import AsyncGenerator
@@ -180,6 +185,7 @@ async def test_agent_uploader_posts_to_server(async_client, db_session, mongo_mo
     The uploader is a sync component; this test exercises the same wire
     format by posting an EventBatch envelope via the test's async client.
     """
+    pytest.importorskip("itbis_agent")
     from itbis_agent.schemas import CanonicalEvent, EventBatch, EventType
 
     token = await _make_agent_token(async_client, db_session)
@@ -220,6 +226,7 @@ async def test_agent_uploader_posts_to_server(async_client, db_session, mongo_mo
 
 @pytest.mark.asyncio
 async def test_server_dedupes_duplicate_events(async_client, db_session, mongo_mock_db):
+    pytest.importorskip("itbis_agent")
     from itbis_agent.schemas import CanonicalEvent, EventBatch, EventType
 
     token = await _make_agent_token(async_client, db_session)
@@ -257,6 +264,7 @@ async def test_server_dedupes_duplicate_events(async_client, db_session, mongo_m
 @pytest.mark.asyncio
 async def test_full_queue_to_server_flow(async_client, db_session, mongo_mock_db):
     """Drive the full agent pipeline (queue enqueue -> batch -> POST)."""
+    pytest.importorskip("itbis_agent")
     import os
     import tempfile
 
