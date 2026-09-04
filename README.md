@@ -23,18 +23,18 @@ The system collects and processes activity logs, establishes behavioral baseline
 
 ---
 
-## Key Capabilities (Planned)
+## Key Capabilities
 
-| Capability | Description |
-|---|---|
-| 🔍 **Behavioral Profiling** | Learns normal user behavior and peer-group patterns |
-| 🤖 **Anomaly Detection** | Isolation Forest + unsupervised ML for unknown threats |
-| ⚠️ **Risk Scoring** | Explainable composite insider risk scores |
-| 🚨 **Alert Management** | Deduplication, severity, routing, enrichment |
-| 🔎 **Threat Investigation** | Timeline, evidence collection, case management |
-| 📊 **SOC Dashboard** | Real-time analyst view of threats and investigations |
-| 📋 **Response Workflows** | Playbooks, automation, SOAR integration |
-| 📈 **Reporting** | Scheduled and custom security reports |
+| Capability | Status | Description |
+|---|---|---|
+| 🔍 **Behavioral Profiling** | ✅ Implemented | Learns normal user behavior and peer-group patterns |
+| 🤖 **Anomaly Detection** | ✅ Implemented | Isolation Forest + unsupervised ML for unknown threats |
+| ⚠️ **Risk Scoring** | ✅ Implemented | Explainable composite insider risk scores |
+| 🚨 **Alert Management** | ✅ Implemented | Deduplication, severity, routing, enrichment |
+| 🔎 **Threat Investigation** | ✅ Implemented | Timeline, evidence collection, case management |
+| 📊 **SOC Dashboard** | ✅ Implemented | Real-time analyst view of threats and investigations |
+| 📋 **Response Workflows** | 📋 Planned | Playbooks, automation, SOAR integration |
+| 📈 **Reporting** | ✅ Implemented | CSV export for alerts and investigations |
 
 ---
 
@@ -92,7 +92,13 @@ modules/<module_name>/
 
 ---
 
-## Data Pipeline (Planned)
+## Data Pipeline (Implemented)
+
+> **Note:** Kafka, Elasticsearch, and MinIO are configured in Docker but not yet wired into the event pipeline.
+
+```
+CSV Files → Ingestion API → Parsers → MongoDB → Behavioral Features → ML Anomaly → Alerts → Investigations → SOC Dashboard
+```
 
 ```
 CERT Dataset / Log Sources
@@ -302,18 +308,18 @@ project2/
 | Phase | Status | Description |
 |---|---|---|
 | **Phase 0** | ✅ Complete | Project foundation, structure, Docker |
-| **Phase 1** | ⏳ Pending | Identity & Access — Auth, RBAC |
-| **Phase 2** | ⏳ Pending | User & Asset Management |
-| **Phase 3** | ⏳ Pending | Activity Collection — Log ingestion |
-| **Phase 4** | ⏳ Pending | CERT Dataset Adapter |
-| **Phase 5** | ⏳ Pending | Behavioral Profiling |
-| **Phase 6** | ⏳ Pending | Anomaly Detection (Isolation Forest) |
-| **Phase 7** | ⏳ Pending | Risk Scoring Engine |
-| **Phase 8** | ⏳ Pending | Alert Management |
-| **Phase 9** | ⏳ Pending | UEBA Intelligence |
-| **Phase 10** | ⏳ Pending | Threat Investigation |
-| **Phase 11** | ⏳ Pending | SOC Dashboard |
-| **Phase 12** | ⏳ Pending | Response & Reporting |
+| **Phase 1** | ✅ Complete | Identity & Access — Auth, JWT, RBAC |
+| **Phase 2** | ✅ Complete | Activity & Event Ingestion — CSV, parsers, canonical events |
+| **Phase 3** | ✅ Complete | Windows Endpoint Agent — `agent/` directory |
+| **Phase 4** | ✅ Complete | Behavioral Feature Engineering — 16 features, user baselines |
+| **Phase 5** | ✅ Complete | ML Anomaly Detection — Isolation Forest, risk scoring |
+| **Phase 6.1** | ✅ Complete | Alerts & Investigations — lifecycle, linking, notes |
+| **Phase 6.2** | ✅ Complete | Frontend SOC Dashboard — React/Vite, real API integration |
+| **Phase 6.3** | ✅ Complete | System Integration Audit — Full architecture review |
+| **Phase 6.4** | ✅ Complete | Alert Generation Frontend — UI button |
+| **Phase 6.5** | ✅ Complete | End-to-End Verification — All flows tested |
+| **Phase 7** | 🔄 In Progress | Deployment, Documentation & Demo Readiness |
+| **Phase 8+** | ⏳ Pending | Risk Module, Notifications, Reporting, Response Workflows |
 
 ---
 
@@ -328,6 +334,165 @@ project2/
 | Data Models | [docs/data/](docs/data/) |
 | ML Pipeline | [docs/ml/](docs/ml/) |
 | Deployment Guide | [docs/deployment/](docs/deployment/) |
+
+---
+
+## Demo Workflow
+
+A step-by-step guide to demonstrate the full ITBIS detection pipeline.
+
+### Prerequisites
+
+1. Docker Desktop running with `docker compose up -d`
+2. Backend running on `http://localhost:8000`
+3. Frontend running on `http://localhost:5173`
+
+### Default Credentials
+
+| Role | Email | Password |
+|------|-------|----------|
+| Superadmin | `admin@itbis-platform.com` | `Admin@ITBIS1` |
+
+---
+
+### Step 1 — Login
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@itbis-platform.com", "password": "Admin@ITBIS1"}'
+```
+
+Or open http://localhost:5173 in your browser and login with the credentials above.
+
+---
+
+### Step 2 — Ingest Activity Data
+
+The system ships with sample CERT-style activity data generators. Use the backend seeder or upload CSV data:
+
+```bash
+# Upload CERT-format CSV via the API
+curl -X POST http://localhost:8000/api/v1/ingestion/upload \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@data/cert/insider Threat/CERT/structured/2010-02.csv"
+```
+
+---
+
+### Step 3 — Generate Behavioral Features
+
+```bash
+curl -X POST http://localhost:8000/api/v1/behavioral/generate \
+  -H "Authorization: Bearer <token>"
+```
+
+This computes 16 behavioral features per user (login frequency, file access patterns, email activity, etc.) and builds user baselines.
+
+---
+
+### Step 4 — Run Anomaly Detection
+
+```bash
+curl -X POST http://localhost:8000/api/v1/anomaly/detect \
+  -H "Authorization: Bearer <token>"
+```
+
+The Isolation Forest model scores each user against their behavioral baseline. High anomaly scores indicate potential insider threat behavior.
+
+---
+
+### Step 5 — Generate Alerts
+
+```bash
+curl -X POST http://localhost:8000/api/v1/alerts/generate \
+  -H "Authorization: Bearer <token>"
+```
+
+Alert policies evaluate anomaly results and create security alerts for high-risk users.
+
+---
+
+### Step 6 — Investigate Alerts
+
+1. Open http://localhost:5173/alerts in your browser
+2. View alert severity, assigned user, and risk details
+3. Click into an alert and acknowledge it
+4. Assign to an analyst or create a linked investigation
+
+Or via API:
+
+```bash
+# Acknowledge an alert
+curl -X POST http://localhost:8000/api/v1/alerts/<alert_id>/acknowledge \
+  -H "Authorization: Bearer <token>"
+
+# Create an investigation
+curl -X POST http://localhost:8000/api/v1/investigations/ \
+  -H "Authorization: Bearer <token>" \
+  -d '{"title": "Investigate user anomalies", "alert_ids": ["<alert_id>"]}'
+```
+
+---
+
+### Step 7 — Export Reports
+
+```bash
+# Export alerts as CSV
+curl http://localhost:8000/api/v1/reports/alerts/export \
+  -H "Authorization: Bearer <token>" \
+  -o alerts_report.csv
+
+# Export investigations as CSV
+curl http://localhost:8000/api/v1/reports/investigations/export \
+  -H "Authorization: Bearer <token>" \
+  -o investigations_report.csv
+```
+
+---
+
+### Architecture Diagram
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Windows Endpoint / CSV Upload                       │
+└─────────────────────┬────────────────────────────────┘
+                      │
+┌─────────────────────▼────────────────────────────────┐
+│  FastAPI Backend (Port 8000)                         │
+│                                                      │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
+│  │ identity │  │ activity │  │   behavioral     │  │
+│  └────┬─────┘  └────┬─────┘  └────────┬─────────┘  │
+│       │              │                  │            │
+│       │      ┌───────┴───────┐         │            │
+│       │      ▼               ▼         ▼            │
+│       │  MongoDB        PostgreSQL   PostgreSQL      │
+│       │  (events)       (users,      (baselines)     │
+│       │                  baselines)                   │
+│       │                  │                           │
+│       └────────┬─────────┘                           │
+│                │                                     │
+│       ┌────────▼────────┐                           │
+│       │    anomaly      │                           │
+│       │ (IsolationForest)│                          │
+│       └────────┬────────┘                           │
+│                │                                     │
+│       ┌────────▼────────┐                           │
+│       │     alerts      │                           │
+│       └────────┬────────┘                           │
+│                │                                     │
+│       ┌────────▼────────┐                           │
+│       │ investigations  │                           │
+│       └─────────────────┘                           │
+└────────────────────┬─────────────────────────────────┘
+                     │
+          ┌──────────▼──────────┐
+          │  React Frontend     │
+          │  (Port 5173)       │
+          │  SOC Dashboard      │
+          └─────────────────────┘
+```
 
 ---
 
