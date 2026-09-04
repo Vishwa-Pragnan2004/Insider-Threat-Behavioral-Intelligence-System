@@ -9,6 +9,8 @@ import type {
   AlertListParams,
   AlertAssignRequest,
   AlertStatusUpdateRequest,
+  AlertGenerateRequest,
+  AlertGenerateResponse,
 } from '../types/alert';
 
 export async function listAlerts(params: AlertListParams = {}): Promise<AlertListResponse> {
@@ -33,5 +35,10 @@ export async function assignAlert(alertId: string, body: AlertAssignRequest): Pr
 
 export async function updateAlertStatus(alertId: string, body: AlertStatusUpdateRequest): Promise<Alert> {
   const { data } = await apiClient.post<Alert>(`/alerts/${alertId}/status`, body);
+  return data;
+}
+
+export async function generateAlerts(body: AlertGenerateRequest = {}): Promise<AlertGenerateResponse> {
+  const { data } = await apiClient.post<AlertGenerateResponse>('/alerts/generate', body);
   return data;
 }

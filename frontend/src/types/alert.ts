@@ -76,3 +76,10 @@ export interface AlertGenerateRequest {
   source_dataset?: string;
   limit?: number;
 }
+
+export interface AlertGenerateResponse {
+  created: number;
+  skipped_duplicates: number;
+  skipped_below_threshold: number;
+  total_processed: number;
+}

@@ -21,16 +21,18 @@ import {
   Stack,
   CircularProgress,
   Alert,
+  Snackbar,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CloseIcon from '@mui/icons-material/Close';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import PageHeader from '../../components/common/PageHeader';
 import SeverityBadge from '../../components/common/SeverityBadge';
 import StatusBadge from '../../components/common/StatusBadge';
 import EmptyState from '../../components/common/EmptyState';
 import type { AlertSeverity, AlertStatus } from '../../types';
-import { listAlerts, acknowledgeAlert, updateAlertStatus } from '../../api/alertService';
+import { listAlerts, acknowledgeAlert, updateAlertStatus, generateAlerts } from '../../api/alertService';
 import type { Alert as AlertType, AlertDeviation, AlertListParams } from '../../types/alert';
 
 const SEVERITIES: AlertSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
@@ -61,6 +63,7 @@ export default function AlertsPage() {
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selectedAlert, setSelectedAlert] = useState<AlertType | null>(null);
+  const [snack, setSnack] = useState<{ open: boolean; msg: string; severity: 'success' | 'error' }>({ open: false, msg: '', severity: 'success' });
 
   const params: AlertListParams = {
     ...(filters.severity && { severity: filters.severity }),
@@ -91,6 +94,17 @@ export default function AlertsPage() {
     },
   });
 
+  const generateMutation = useMutation({
+    mutationFn: () => generateAlerts({ limit: 1000 }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['alerts'] });
+      setSnack({ open: true, msg: `Generated ${result.created} alerts (${result.skipped_duplicates} duplicates, ${result.skipped_below_threshold} below threshold)`, severity: 'success' });
+    },
+    onError: (err: Error) => {
+      setSnack({ open: true, msg: `Generation failed: ${err.message}`, severity: 'error' });
+    },
+  });
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -117,14 +131,25 @@ export default function AlertsPage() {
         title="Alerts"
         subtitle="Monitor and triage security alerts"
         actions={
-          <Button
-            startIcon={<RefreshIcon />}
-            onClick={handleRefresh}
-            variant="outlined"
-            size="small"
-          >
-            Refresh
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              startIcon={generateMutation.isPending ? <CircularProgress size={16} /> : <AutoAwesomeIcon />}
+              onClick={() => generateMutation.mutate()}
+              variant="contained"
+              size="small"
+              disabled={generateMutation.isPending}
+            >
+              {generateMutation.isPending ? 'Generating...' : 'Generate Alerts'}
+            </Button>
+            <Button
+              startIcon={<RefreshIcon />}
+              onClick={handleRefresh}
+              variant="outlined"
+              size="small"
+            >
+              Refresh
+            </Button>
+          </Box>
         }
       />
 
@@ -406,6 +431,17 @@ export default function AlertsPage() {
           )}
         </Box>
       </Drawer>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={5000}
+        onClose={() => setSnack(s => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snack.severity} onClose={() => setSnack(s => ({ ...s, open: false }))}>
+          {snack.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
