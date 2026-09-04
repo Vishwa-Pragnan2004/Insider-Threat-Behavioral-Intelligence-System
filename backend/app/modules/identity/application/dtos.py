@@ -41,3 +41,9 @@ class UserProfileDTO:
     roles: list[str]
     permissions: list[str]
     is_superadmin: bool
+
+
+@dataclass
+class UpdateUserDTO:
+    full_name: str | None = None
+    email: str | None = None

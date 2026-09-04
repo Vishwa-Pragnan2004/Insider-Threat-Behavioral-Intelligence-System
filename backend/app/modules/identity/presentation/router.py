@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.redis_client import get_redis
-from app.modules.identity.application.dtos import LoginDTO, RegisterUserDTO
+from app.modules.identity.application.dtos import LoginDTO, RegisterUserDTO, UpdateUserDTO
 from app.modules.identity.application.use_cases.get_current_user import (
     GetCurrentUserUseCase,
 )
@@ -16,6 +16,7 @@ from app.modules.identity.application.use_cases.login_user import LoginUserUseCa
 from app.modules.identity.application.use_cases.logout_user import LogoutUserUseCase
 from app.modules.identity.application.use_cases.refresh_token import RefreshTokenUseCase
 from app.modules.identity.application.use_cases.register_user import RegisterUserUseCase
+from app.modules.identity.application.use_cases.update_user import UpdateUserUseCase
 from app.modules.identity.domain.entities import User
 from app.modules.identity.domain.enums import PermissionName
 from app.modules.identity.domain.exceptions import IdentityError
@@ -34,6 +35,7 @@ from app.modules.identity.presentation.schemas import (
     RefreshTokenRequest,
     RegisterUserRequest,
     TokenResponse,
+    UpdateUserRequest,
     UserProfileResponse,
 )
 
@@ -164,6 +166,33 @@ async def get_me(
         return result
     except IdentityError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+
+
+@router.patch(
+    "/me",
+    response_model=UserProfileResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update current user profile",
+)
+async def update_me(
+    payload: UpdateUserRequest,
+    current_user: User = Depends(require_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update the profile of the currently authenticated user."""
+    user_repo = SQLUserRepository(db)
+    use_case = UpdateUserUseCase(user_repo)
+
+    dto = UpdateUserDTO(
+        full_name=payload.full_name,
+        email=payload.email,
+    )
+
+    try:
+        result = await use_case.execute(str(current_user.id), dto)
+        return result
+    except IdentityError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ─── Demo Endpoints ──────────────────────────────────────────

@@ -532,3 +532,101 @@ async def test_login_updates_last_login(async_client: AsyncClient, db_session):
     )
     last_login_after = after.scalar_one_or_none()
     assert last_login_after is not None
+
+
+# ─────────────────────────────────────────────────────────────
+# Update User Profile (PATCH /auth/me)
+# ─────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_update_me_success(async_client: AsyncClient):
+    """Authenticated user can update their own profile."""
+    await register_user(async_client)
+    login_r = await login_user(async_client)
+    token = login_r.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    r = await async_client.patch(
+        f"{BASE}/me",
+        headers=headers,
+        json={"full_name": "Updated Name", "email": "updated@example.com"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["full_name"] == "Updated Name"
+    assert body["email"] == "updated@example.com"
+
+
+@pytest.mark.asyncio
+async def test_update_me_partial(async_client: AsyncClient):
+    """Updating with only full_name does not change email."""
+    await register_user(async_client)
+    login_r = await login_user(async_client)
+    token = login_r.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    r = await async_client.patch(
+        f"{BASE}/me",
+        headers=headers,
+        json={"full_name": "New Name Only"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["full_name"] == "New Name Only"
+    assert body["email"] == VALID_USER["email"]
+
+
+@pytest.mark.asyncio
+async def test_update_me_requires_auth(async_client: AsyncClient):
+    """Unauthenticated request returns 401."""
+    r = await async_client.patch(
+        f"{BASE}/me",
+        json={"full_name": "Hacker"},
+    )
+    assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_update_me_invalid_email(async_client: AsyncClient):
+    """Invalid email format returns 422."""
+    await register_user(async_client)
+    login_r = await login_user(async_client)
+    token = login_r.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    r = await async_client.patch(
+        f"{BASE}/me",
+        headers=headers,
+        json={"email": "not-an-email"},
+    )
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_me_does_not_change_protected_fields(async_client: AsyncClient):
+    """Updating profile does not change protected fields."""
+    await register_user(async_client)
+    login_r = await login_user(async_client)
+    token = login_r.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Get original profile
+    me_before = await async_client.get(f"{BASE}/me", headers=headers)
+    original_id = me_before.json()["id"]
+    original_roles = me_before.json()["roles"]
+    original_is_superadmin = me_before.json()["is_superadmin"]
+
+    # Update profile
+    r = await async_client.patch(
+        f"{BASE}/me",
+        headers=headers,
+        json={"full_name": "Hacker"},
+    )
+    assert r.status_code == 200, r.text
+
+    # Verify protected fields unchanged
+    me_after = await async_client.get(f"{BASE}/me", headers=headers)
+    body = me_after.json()
+    assert body["id"] == original_id
+    assert body["roles"] == original_roles
+    assert body["is_superadmin"] == original_is_superadmin

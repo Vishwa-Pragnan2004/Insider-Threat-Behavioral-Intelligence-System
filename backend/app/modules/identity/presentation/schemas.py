@@ -24,6 +24,11 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str = Field(...)
 
 
+class UpdateUserRequest(BaseModel):
+    full_name: str | None = Field(None, max_length=100)
+    email: EmailStr | None = None
+
+
 # ─── Responses ───────────────────────────────────────────────
 
 class TokenResponse(BaseModel):

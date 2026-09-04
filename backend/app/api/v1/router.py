@@ -25,6 +25,7 @@ from app.modules.alerts.presentation.router import router as alerts_router
 from app.modules.investigations.presentation.router import (
     router as investigations_router,
 )
+from app.modules.reporting.presentation.router import router as reporting_router
 # from app.modules.users.presentation import router as users_router
 api_v1_router.include_router(identity_router, prefix="/auth", tags=["Identity"])
 api_v1_router.include_router(activity_router, prefix="/ingestion", tags=["Activity"])
@@ -35,5 +36,6 @@ api_v1_router.include_router(alerts_router, prefix="/alerts", tags=["Alerts"])
 api_v1_router.include_router(
     investigations_router, prefix="/investigations", tags=["Investigations"]
 )
+api_v1_router.include_router(reporting_router, prefix="/reports", tags=["Reports"])
 # api_v1_router.include_router(users_router, prefix="/users", tags=["Users"])
 # api_v1_router.include_router(activity_router, prefix="/activity", tags=["Activity"])

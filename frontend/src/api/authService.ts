@@ -67,3 +67,19 @@ export async function getCurrentUser(): Promise<User> {
   const response = await apiClient.get<User>('/auth/me');
   return response.data;
 }
+
+export interface UpdateUserRequest {
+  full_name?: string;
+  email?: string;
+}
+
+/**
+ * PATCH /api/v1/auth/me
+ *
+ * Updates the current user's profile.
+ */
+export async function updateCurrentUser(data: UpdateUserRequest): Promise<User> {
+  const { apiClient } = await import('../services/apiClient');
+  const response = await apiClient.patch<User>('/auth/me', data);
+  return response.data;
+}
