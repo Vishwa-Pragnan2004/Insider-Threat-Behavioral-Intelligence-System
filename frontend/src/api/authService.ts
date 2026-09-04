@@ -1,72 +1,69 @@
-import type { LoginCredentials, LoginResponse } from '../types/auth';
-import { mockUser, mockTokens } from '../mocks/userData';
-import { simulateDelay } from './axiosInstance';
-
 /**
  * Authentication Service
  *
- * Handles login, logout, and token management.
- * Currently uses mock data; when Django backend is ready, replace
- * the mock implementations with real Axios calls.
+ * Real API calls to the FastAPI identity module.
+ * All functions use the canonical apiClient which handles
+ * automatic token attachment and 401-refresh.
  */
+
+import axios from 'axios';
+import type { LoginCredentials, TokenResponse, User } from '../types/auth';
+import { TOKEN_KEYS } from '../services/apiClient';
+
+// Direct axios instance for login (no token needed yet)
+const _noAuthClient = axios.create({
+  baseURL: '/api/v1',
+  timeout: 30_000,
+  headers: { 'Content-Type': 'application/json' },
+});
 
 /**
- * Log in with email and password.
+ * POST /api/v1/auth/login
  *
- * Mock: Accepts any email that looks valid + any password with 4+ characters.
- * Real: POST /api/v1/auth/login/ with credentials.
+ * On success, caller must store the returned tokens in localStorage
+ * using TOKEN_KEYS before any authenticated requests are made.
  */
-export const login = async (credentials: LoginCredentials): Promise<LoginResponse> => {
-  // Simulate network delay
-  await simulateDelay(800);
+export async function login(credentials: LoginCredentials): Promise<TokenResponse> {
+  const response = await _noAuthClient.post<TokenResponse>('/auth/login', credentials);
+  return response.data;
+}
 
-  // --- Mock validation ---
-  // In production, the Django backend would validate credentials
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(credentials.email)) {
-    throw new Error('Please enter a valid email address.');
+/**
+ * POST /api/v1/auth/logout
+ *
+ * Calls the backend to revoke the refresh token.
+ * Best-effort: failures are swallowed and the caller should
+ * still clear local tokens.
+ */
+export async function logout(): Promise<void> {
+  const refreshToken = localStorage.getItem(TOKEN_KEYS.refresh);
+  if (!refreshToken) return;
+
+  try {
+    // Use direct axios so the 401 interceptor doesn't fire from this call
+    await axios.post(
+      '/api/v1/auth/logout',
+      { refresh_token: refreshToken },
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem(TOKEN_KEYS.access) ?? ''}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+  } catch {
+    // best-effort: logout locally regardless
   }
-  if (credentials.password.length < 4) {
-    throw new Error('Invalid credentials. Please try again.');
-  }
-
-  // --- Mock success response ---
-  // When backend is ready, replace with:
-  // const response = await axiosInstance.post('/auth/login/', credentials);
-  // return response.data;
-  return {
-    access: mockTokens.access,
-    refresh: mockTokens.refresh,
-    user: mockUser,
-  };
-};
+}
 
 /**
- * Log out the current user.
+ * GET /api/v1/auth/me
  *
- * Mock: Just clears local storage.
- * Real: POST /api/v1/auth/logout/ to invalidate the refresh token.
+ * Returns the authenticated user profile.
+ * apiClient attaches the access token and handles 401-refresh.
  */
-export const logout = async (): Promise<void> => {
-  await simulateDelay(200);
-
-  // When backend is ready, replace with:
-  // await axiosInstance.post('/auth/logout/', { refresh: localStorage.getItem('refresh_token') });
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
-};
-
-/**
- * Get current user profile.
- *
- * Mock: Returns the mock user.
- * Real: GET /api/v1/auth/me/
- */
-export const getCurrentUser = async (): Promise<LoginResponse['user']> => {
-  await simulateDelay(300);
-
-  // When backend is ready, replace with:
-  // const response = await axiosInstance.get('/auth/me/');
-  // return response.data;
-  return mockUser;
-};
+export async function getCurrentUser(): Promise<User> {
+  const { apiClient } = await import('../services/apiClient');
+  const response = await apiClient.get<User>('/auth/me');
+  return response.data;
+}

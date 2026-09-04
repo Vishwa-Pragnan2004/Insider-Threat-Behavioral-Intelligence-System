@@ -3,8 +3,8 @@
  * Core types used across all frontend modules.
  */
 
-// ─── Risk Levels ──────────────────────────────────────────────
-export type RiskLevel = 'info' | 'low' | 'medium' | 'high' | 'critical';
+// ─── Risk Levels (from anomaly domain) ─────────────────────────
+export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 // ─── Health / System Types ────────────────────────────────────
 export interface HealthResponse {
@@ -57,24 +57,26 @@ export interface ApiError {
   field?: string;
 }
 
-// ─── User / Auth Types (Placeholder — Phase 1) ───────────────
-export interface User {
-  id: string;
-  email: string;
-  full_name: string;
-  role: UserRole;
-  is_active: boolean;
-  created_at: string;
-}
+// ─── User / Auth Types ──────────────────────────────────────────
+export type { User } from './auth';
 
-export type UserRole =
-  | 'superadmin'
-  | 'security_manager'
-  | 'soc_analyst'
-  | 'soc_engineer'
-  | 'viewer';
+// ─── Alert Types (from alerts module) ─────────────────────────
+export type AlertSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
-// ─── Event Types (Placeholder — Phase 3) ─────────────────────
+export type AlertStatus =
+  | 'OPEN'
+  | 'ACKNOWLEDGED'
+  | 'IN_PROGRESS'
+  | 'RESOLVED'
+  | 'FALSE_POSITIVE';
+
+// ─── Anomaly Types (from anomaly domain) ───────────────────────
+export type AnomalyPrediction = 'NORMAL' | 'ANOMALY';
+
+// ─── Investigation Types (from investigations module) ───────────
+export type InvestigationStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+
+// ─── Event Types (from activity module) ───────────────────────
 export type EventType =
   | 'logon' | 'logoff' | 'logon_failed'
   | 'file_read' | 'file_write' | 'file_delete' | 'file_copy'
@@ -83,7 +85,3 @@ export type EventType =
   | 'http_request' | 'http_upload'
   | 'privilege_change'
   | 'unknown';
-
-// ─── Alert Types (Placeholder — Phase 8) ─────────────────────
-export type AlertStatus = 'open' | 'acknowledged' | 'investigating' | 'resolved' | 'false_positive';
-export type AlertSeverity = RiskLevel;

@@ -11,25 +11,12 @@ import {
   Divider,
   Tooltip,
 } from '@mui/material';
-
-// Icons for each navigation item
 import DashboardIcon from '@mui/icons-material/Dashboard';
-import ImageSearchIcon from '@mui/icons-material/ImageSearch';
-import InventoryIcon from '@mui/icons-material/Inventory2';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
-import RecommendIcon from '@mui/icons-material/Lightbulb';
-import AnalyticsIcon from '@mui/icons-material/BarChart';
+import SearchIcon from '@mui/icons-material/ManageSearch';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import SettingsIcon from '@mui/icons-material/Settings';
-import SpaIcon from '@mui/icons-material/Spa';
-
-/**
- * Sidebar Navigation
- *
- * Collapsible sidebar with navigation links to all pages.
- * Shows icons + text when expanded, icons only when collapsed.
- * On mobile, renders as an overlay drawer.
- */
+import SecurityIcon from '@mui/icons-material/Shield';
 
 interface SidebarProps {
   open: boolean;
@@ -39,15 +26,11 @@ interface SidebarProps {
   isMobile: boolean;
 }
 
-// Navigation items — add new pages here as they're built
 const navItems = [
-  { label: 'Dashboard',       path: '/',               icon: <DashboardIcon /> },
-  { label: 'Image Analysis',  path: '/image-analysis',  icon: <ImageSearchIcon /> },
-  { label: 'Inventory',       path: '/inventory',       icon: <InventoryIcon /> },
-  { label: 'Alerts',          path: '/alerts',          icon: <NotificationsActiveIcon /> },
-  { label: 'Recommendations', path: '/recommendations', icon: <RecommendIcon /> },
-  { label: 'Analytics',       path: '/analytics',       icon: <AnalyticsIcon /> },
-  { label: 'Reports',         path: '/reports',         icon: <AssessmentIcon /> },
+  { label: 'Dashboard',       path: '/dashboard',       icon: <DashboardIcon /> },
+  { label: 'Alerts',          path: '/alerts',           icon: <NotificationsActiveIcon /> },
+  { label: 'Investigations',  path: '/investigations',   icon: <SearchIcon /> },
+  { label: 'Reports',         path: '/reports',          icon: <AssessmentIcon /> },
 ];
 
 const bottomNavItems = [
@@ -58,22 +41,15 @@ export default function Sidebar({ open, onClose, width, collapsedWidth, isMobile
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Current sidebar width based on open/collapsed state
   const currentWidth = open ? width : collapsedWidth;
 
-  // Navigate to a page and close mobile drawer
   const handleNav = (path: string) => {
     navigate(path);
     if (isMobile) onClose();
   };
 
-  // Check if a nav item is active
-  const isActive = (path: string) => {
-    if (path === '/') return location.pathname === '/';
-    return location.pathname.startsWith(path);
-  };
+  const isActive = (path: string) => location.pathname.startsWith(path);
 
-  // Sidebar content — shared between permanent and temporary drawer
   const sidebarContent = (
     <Box
       sx={{
@@ -83,7 +59,6 @@ export default function Sidebar({ open, onClose, width, collapsedWidth, isMobile
         overflow: 'hidden',
       }}
     >
-      {/* App Logo & Title */}
       <Box
         sx={{
           display: 'flex',
@@ -95,27 +70,24 @@ export default function Sidebar({ open, onClose, width, collapsedWidth, isMobile
           justifyContent: open ? 'flex-start' : 'center',
         }}
       >
-        <SpaIcon sx={{ color: 'primary.main', fontSize: 32 }} />
+        <SecurityIcon sx={{ color: 'primary.main', fontSize: 32 }} />
         {open && (
           <Typography
             variant="h6"
             sx={{
               fontWeight: 700,
-              background: 'linear-gradient(135deg, #00BCD4, #10B981)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+              fontSize: '1.1rem',
+              color: 'primary.main',
               whiteSpace: 'nowrap',
             }}
           >
-            FreshTrack
+            ITBIS SOC
           </Typography>
         )}
       </Box>
 
       <Divider sx={{ borderColor: 'divider' }} />
 
-      {/* Main Navigation */}
       <List sx={{ flexGrow: 1, px: 1, py: 1.5 }}>
         {navItems.map((item) => (
           <Tooltip
@@ -134,12 +106,12 @@ export default function Sidebar({ open, onClose, width, collapsedWidth, isMobile
                   px: open ? 2 : 1.5,
                   justifyContent: open ? 'flex-start' : 'center',
                   '&.Mui-selected': {
-                    bgcolor: 'rgba(0, 188, 212, 0.12)',
-                    color: 'primary.main',
-                    '& .MuiListItemIcon-root': { color: 'primary.main' },
-                    '&:hover': { bgcolor: 'rgba(0, 188, 212, 0.18)' },
+                    bgcolor: 'primary.dark',
+                    color: 'primary.contrastText',
+                    '& .MuiListItemIcon-root': { color: 'primary.contrastText' },
+                    '&:hover': { bgcolor: 'primary.main' },
                   },
-                  '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.04)' },
+                  '&:hover': { bgcolor: 'action.hover' },
                 }}
               >
                 <ListItemIcon
@@ -160,7 +132,6 @@ export default function Sidebar({ open, onClose, width, collapsedWidth, isMobile
 
       <Divider sx={{ borderColor: 'divider' }} />
 
-      {/* Bottom Navigation (Settings) */}
       <List sx={{ px: 1, py: 1 }}>
         {bottomNavItems.map((item) => (
           <Tooltip
@@ -179,11 +150,11 @@ export default function Sidebar({ open, onClose, width, collapsedWidth, isMobile
                   px: open ? 2 : 1.5,
                   justifyContent: open ? 'flex-start' : 'center',
                   '&.Mui-selected': {
-                    bgcolor: 'rgba(0, 188, 212, 0.12)',
-                    color: 'primary.main',
-                    '& .MuiListItemIcon-root': { color: 'primary.main' },
+                    bgcolor: 'primary.dark',
+                    color: 'primary.contrastText',
+                    '& .MuiListItemIcon-root': { color: 'primary.contrastText' },
                   },
-                  '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.04)' },
+                  '&:hover': { bgcolor: 'action.hover' },
                 }}
               >
                 <ListItemIcon
@@ -204,14 +175,13 @@ export default function Sidebar({ open, onClose, width, collapsedWidth, isMobile
     </Box>
   );
 
-  // Mobile: Temporary drawer (overlay)
   if (isMobile) {
     return (
       <Drawer
         variant="temporary"
         open={open}
         onClose={onClose}
-        ModalProps={{ keepMounted: true }} // Better mobile performance
+        ModalProps={{ keepMounted: true }}
         sx={{
           '& .MuiDrawer-paper': {
             width: width,
@@ -224,7 +194,6 @@ export default function Sidebar({ open, onClose, width, collapsedWidth, isMobile
     );
   }
 
-  // Desktop: Permanent drawer (always visible, collapsible)
   return (
     <Drawer
       variant="permanent"

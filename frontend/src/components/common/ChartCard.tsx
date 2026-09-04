@@ -9,7 +9,7 @@ import type { ReactNode } from 'react';
  * container with a title, optional subtitle, and optional action menu.
  *
  * Usage:
- *   <ChartCard title="Freshness Trend" subtitle="Last 30 days">
+ *   <ChartCard title="Risk Score Trend" subtitle="Last 30 days">
  *     <ResponsiveContainer>
  *       <LineChart data={data}>...</LineChart>
  *     </ResponsiveContainer>
@@ -17,15 +17,10 @@ import type { ReactNode } from 'react';
  */
 
 interface ChartCardProps {
-  /** Card title */
   title: string;
-  /** Optional subtitle shown below the title */
   subtitle?: string;
-  /** The chart component to render inside */
   children: ReactNode;
-  /** Optional fixed height for the chart area (default: 300px) */
   height?: number;
-  /** Whether to show the options menu icon */
   showMenu?: boolean;
 }
 
@@ -41,15 +36,13 @@ export default function ChartCard({
       <CardHeader
         title={title}
         subheader={subtitle}
-        slotProps={{
-          title: {
-            variant: 'h6',
-            sx: { fontSize: '1rem', fontWeight: 600 },
-          },
-          subheader: {
-            variant: 'body2',
-            sx: { color: 'text.secondary', mt: 0.3 },
-          },
+        titleTypographyProps={{
+          variant: 'h6',
+          sx: { fontSize: '1rem', fontWeight: 600 },
+        }}
+        subheaderTypographyProps={{
+          variant: 'body2',
+          sx: { color: 'text.secondary', mt: 0.3 },
         }}
         action={
           showMenu ? (

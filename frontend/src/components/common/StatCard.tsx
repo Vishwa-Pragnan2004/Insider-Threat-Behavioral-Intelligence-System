@@ -8,25 +8,17 @@ import type { ReactNode } from 'react';
  *
  * A KPI metric card showing a single key statistic with:
  * - An icon
- * - A label (e.g. "Total Products")
- * - A large value (e.g. "1,247")
+ * - A label
+ * - A large value
  * - A trend indicator (e.g. "+5.2%" with up/down arrow)
- *
- * Used on the Dashboard page for the top row of summary cards.
  */
 
 interface StatCardProps {
-  /** The name of the metric */
   label: string;
-  /** The main value to display (pre-formatted string) */
   value: string;
-  /** Percentage change from previous period */
   trend: number;
-  /** Whether a positive trend is good (true) or bad (false) */
   trendUpIsGood?: boolean;
-  /** Icon displayed in the top-left corner */
   icon: ReactNode;
-  /** Background color for the icon container */
   iconColor?: string;
 }
 
@@ -36,12 +28,9 @@ export default function StatCard({
   trend,
   trendUpIsGood = true,
   icon,
-  iconColor = 'rgba(0, 188, 212, 0.15)',
+  iconColor = 'rgba(59, 130, 246, 0.12)',
 }: StatCardProps) {
-  // Determine if the trend is positive or negative
   const isPositive = trend >= 0;
-
-  // Determine if the trend represents a good or bad outcome
   const isGood = trendUpIsGood ? isPositive : !isPositive;
 
   return (
@@ -56,9 +45,7 @@ export default function StatCard({
       }}
     >
       <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
-        {/* Top row: Icon + Trend */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-          {/* Icon */}
           <Box
             sx={{
               display: 'flex',
@@ -68,13 +55,12 @@ export default function StatCard({
               height: 48,
               borderRadius: 2,
               bgcolor: iconColor,
-              color: iconColor.replace('0.15', '1'), // Full opacity for the icon
+              color: iconColor.replace('0.12', '1'),
             }}
           >
             {icon}
           </Box>
 
-          {/* Trend Badge */}
           <Box
             sx={{
               display: 'flex',
@@ -98,12 +84,10 @@ export default function StatCard({
           </Box>
         </Box>
 
-        {/* Value */}
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5, color: 'text.primary' }}>
           {value}
         </Typography>
 
-        {/* Label */}
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
           {label}
         </Typography>

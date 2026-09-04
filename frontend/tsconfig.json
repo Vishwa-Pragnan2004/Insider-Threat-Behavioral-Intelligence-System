@@ -7,6 +7,9 @@
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 
+    /* JSX — required for React components */
+    "jsx": "react-jsx",
+
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

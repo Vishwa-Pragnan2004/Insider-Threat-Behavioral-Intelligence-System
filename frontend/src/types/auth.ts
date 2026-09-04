@@ -1,42 +1,48 @@
 /**
  * Authentication Types
  *
- * These interfaces match the expected Django REST Framework
- * authentication API contracts (TokenObtainPair, User serializer).
+ * Exact TypeScript representations of the FastAPI identity module
+ * Pydantic schemas (backend/app/modules/identity/presentation/schemas.py).
  */
 
-/** Credentials sent to POST /api/v1/auth/login/ */
+// ─── Requests ─────────────────────────────────────────────────
+
+/** POST /api/v1/auth/login — request body */
 export interface LoginCredentials {
   email: string;
   password: string;
 }
 
-/** Response from POST /api/v1/auth/login/ */
-export interface LoginResponse {
-  access: string;   // JWT access token
-  refresh: string;  // JWT refresh token
-  user: User;
+// ─── Responses ────────────────────────────────────────────────
+
+/** POST /api/v1/auth/login and POST /api/v1/auth/refresh — response */
+export interface TokenResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
 }
 
-/** User profile — from GET /api/v1/auth/me/ */
+/**
+ * GET /api/v1/auth/me — response
+ *
+ * Matches UserProfileResponse exactly from the backend.
+ */
 export interface User {
-  id: number;
+  id: string;
+  username: string;
   email: string;
-  first_name: string;
-  last_name: string;
-  role: UserRole;
-  avatar_url: string | null;
-  is_active: boolean;
-  date_joined: string;  // ISO 8601
+  full_name: string;
+  roles: string[];
+  permissions: string[];
+  is_superadmin: boolean;
 }
 
-/** User roles matching Django's group-based permissions */
-export type UserRole = 'admin' | 'manager' | 'analyst' | 'viewer';
+// ─── Auth Context State ───────────────────────────────────────
 
-/** Auth state stored in the app */
+/** Auth state managed by the AuthProvider */
 export interface AuthState {
   user: User | null;
-  accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 }

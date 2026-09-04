@@ -12,6 +12,7 @@ The anomaly module stores its detection results in MongoDB
 (anomaly_results collection), so no additional SQL tables are
 required in this migration.
 """
+from alembic import op
 from typing import Sequence, Union
 
 # revision identifiers, used by Alembic.

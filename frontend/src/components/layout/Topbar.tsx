@@ -57,7 +57,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
 
   // Get user initials for the avatar
   const initials = user
-    ? `${user.first_name[0]}${user.last_name[0]}`
+    ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : '?';
 
   return (
@@ -109,22 +109,20 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
           onClose={handleMenuClose}
           transformOrigin={{ horizontal: 'right', vertical: 'top' }}
           anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-          slotProps={{
-            paper: {
-              sx: {
-                mt: 1,
-                minWidth: 200,
-                bgcolor: 'background.paper',
-                border: '1px solid',
-                borderColor: 'divider',
-              },
+          PaperProps={{
+            sx: {
+              mt: 1,
+              minWidth: 200,
+              bgcolor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
             },
           }}
         >
           {/* User Info */}
           <Box sx={{ px: 2, py: 1.5 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>
-              {user ? `${user.first_name} ${user.last_name}` : 'User'}
+              {user?.full_name ?? 'User'}
             </Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>
               {user?.email}
