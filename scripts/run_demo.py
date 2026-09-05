@@ -242,31 +242,40 @@ def run_pipeline(base_url: str, token: str) -> dict:
                 "window": "daily",
             },
         )
-        resp.raise_for_status()
-        anomaly_result = resp.json()
-        print(f"  Anomalies detected: {anomaly_result['count']}")
-        print(f"  Risk levels: {anomaly_result['risk_levels']}")
-        results["anomalies"] = anomaly_result
-
-        if anomaly_result["count"] > 0:
-            print("\n[Bonus] Generating alerts...")
-            resp = client.post(
-                "/api/v1/alerts/generate",
-                headers=headers,
-                json={
-                    "start": start.isoformat(),
-                    "end": end.isoformat(),
-                    "limit": 50,
-                },
-            )
-            resp.raise_for_status()
-            alert_result = resp.json()
-            print(f"  Alerts created: {alert_result['created']}")
-            print(f"  Skipped (duplicates): {alert_result['skipped_duplicates']}")
-            print(f"  Skipped (below threshold): {alert_result['skipped_below_threshold']}")
-            results["alerts"] = alert_result
+        if resp.status_code == 500 and "Model artifact not found" in resp.text:
+            print("  WARNING: ML model not trained yet. Run model training first:")
+            print("    POST /api/v1/anomaly/train with training data")
+            print("  Skipping anomaly detection.")
+            results["anomalies"] = None
+        elif resp.status_code != 200:
+            print(f"  WARNING: Anomaly detection returned {resp.status_code}")
+            print(f"  Response: {resp.text[:500]}")
+            results["anomalies"] = None
         else:
-            print("\n[Bonus] No anomalies to generate alerts from.")
+            anomaly_result = resp.json()
+            print(f"  Anomalies detected: {anomaly_result['count']}")
+            print(f"  Risk levels: {anomaly_result['risk_levels']}")
+            results["anomalies"] = anomaly_result
+
+            if anomaly_result["count"] > 0:
+                print("\n[Bonus] Generating alerts...")
+                resp = client.post(
+                    "/api/v1/alerts/generate",
+                    headers=headers,
+                    json={
+                        "start": start.isoformat(),
+                        "end": end.isoformat(),
+                        "limit": 50,
+                    },
+                )
+                resp.raise_for_status()
+                alert_result = resp.json()
+                print(f"  Alerts created: {alert_result['created']}")
+                print(f"  Skipped (duplicates): {alert_result['skipped_duplicates']}")
+                print(f"  Skipped (below threshold): {alert_result['skipped_below_threshold']}")
+                results["alerts"] = alert_result
+            else:
+                print("\n[Bonus] No anomalies to generate alerts from.")
 
     print("\n" + "=" * 60)
     print("DEMO PIPELINE COMPLETE")

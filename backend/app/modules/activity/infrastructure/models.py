@@ -28,9 +28,15 @@ class IngestionJobModel(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     filename: Mapped[str] = mapped_column(String(512), nullable=False)
-    log_type: Mapped[LogType] = mapped_column(Enum(LogType), nullable=False)
+    log_type: Mapped[LogType] = mapped_column(
+        Enum(LogType, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+    )
     source_dataset: Mapped[str] = mapped_column(String(128), nullable=False)
-    status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), nullable=False)
+    status: Mapped[JobStatus] = mapped_column(
+        Enum(JobStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+    )
 
     total_rows: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     processed_rows: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
