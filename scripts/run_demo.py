@@ -5,8 +5,9 @@ This script generates synthetic CERT-format activity data and runs the full dete
 1. Generate synthetic logon and email CSV data
 2. Ingest via POST /api/v1/ingestion/upload
 3. Generate behavioral features via POST /api/v1/behavioral/generate
-4. Run anomaly detection via POST /api/v1/anomaly/detect
-5. Generate alerts via POST /api/v1/alerts/generate
+4. Train ML model via POST /api/v1/anomaly/train
+5. Run anomaly detection via POST /api/v1/anomaly/detect
+6. Generate alerts via POST /api/v1/alerts/generate
 
 Usage:
     python scripts/run_demo.py [--base-url http://localhost:8000] [--token <jwt_token>]
@@ -14,10 +15,7 @@ Usage:
 
 import argparse
 import csv
-import io
 import random
-import sys
-import uuid
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
 
@@ -38,7 +36,11 @@ def generate_cert_csv(
     """
     Generate synthetic CERT-format CSV data with normal and anomalous behavior.
 
-    Returns list of generated user IDs.
+    Normal users: moderate activity during work hours (3-8 logons/day)
+    Anomalous user: EXTREME activity (100-200 logons/day), massive failed logons,
+    activity at all hours including midnight - clearly distinguishable pattern
+
+    Returns list of generated user IDs and list of anomalous user IDs.
     """
     random.seed(42)
 
@@ -49,37 +51,48 @@ def generate_cert_csv(
 
     with open(output_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-
         writer.writerow(["id", "date", "user", "pc", "activity"])
 
         row_id = 1
 
         for user in users:
             pc = f"PC-{user.split('.')[-1]}"
-
             is_anomaly = user in anomaly_users
 
             for day_offset in range(normal_days):
                 current_date = start_date + timedelta(days=day_offset)
 
-                num_logons = random.randint(3, 8) if not is_anomaly else random.randint(8, 15)
-                for _ in range(num_logons):
-                    hour = random.randint(8, 18)
-                    minute = random.randint(0, 59)
-                    second = random.randint(0, 59)
-                    dt = current_date.replace(hour=hour, minute=minute, second=second)
-                    writer.writerow([row_id, dt.strftime("%m/%d/%Y %H:%M:%S"), user, pc, "logon"])
-                    row_id += 1
-
-                    if random.random() < 0.3:
-                        writer.writerow([row_id, dt.strftime("%m/%d/%Y %H:%M:%S"), user, pc, "logoff"])
+                if not is_anomaly:
+                    num_logons = random.randint(3, 8)
+                    for _ in range(num_logons):
+                        hour = random.randint(8, 18)
+                        minute = random.randint(0, 59)
+                        second = random.randint(0, 59)
+                        dt = current_date.replace(hour=hour, minute=minute, second=second)
+                        writer.writerow([row_id, dt.strftime("%m/%d/%Y %H:%M:%S"), user, pc, "logon"])
                         row_id += 1
+                        if random.random() < 0.3:
+                            writer.writerow([row_id, dt.strftime("%m/%d/%Y %H:%M:%S"), user, pc, "logoff"])
+                            row_id += 1
+                else:
+                    num_logons = random.randint(8, 15)
+                    for _ in range(num_logons):
+                        hour = random.randint(8, 18)
+                        minute = random.randint(0, 59)
+                        second = random.randint(0, 59)
+                        dt = current_date.replace(hour=hour, minute=minute, second=second)
+                        writer.writerow([row_id, dt.strftime("%m/%d/%Y %H:%M:%S"), user, pc, "logon"])
+                        row_id += 1
+                        if random.random() < 0.3:
+                            writer.writerow([row_id, dt.strftime("%m/%d/%Y %H:%M:%S"), user, pc, "logoff"])
+                            row_id += 1
 
             if is_anomaly:
                 for day_offset in range(anomalous_days):
                     current_date = start_date + timedelta(days=normal_days + day_offset)
 
-                    for _ in range(random.randint(20, 35)):
+                    num_logons = random.randint(300, 500)
+                    for _ in range(num_logons):
                         hour = random.randint(0, 23)
                         minute = random.randint(0, 59)
                         second = random.randint(0, 59)
@@ -87,7 +100,12 @@ def generate_cert_csv(
                         writer.writerow([row_id, dt.strftime("%m/%d/%Y %H:%M:%S"), user, pc, "logon"])
                         row_id += 1
 
-                    for _ in range(random.randint(5, 15)):
+                    num_failed = random.randint(150, 250)
+                    for _ in range(num_failed):
+                        hour = random.randint(0, 23)
+                        minute = random.randint(0, 59)
+                        second = random.randint(0, 59)
+                        dt = current_date.replace(hour=hour, minute=minute, second=second)
                         writer.writerow([row_id, dt.strftime("%m/%d/%Y %H:%M:%S"), user, pc, "failed logon"])
                         row_id += 1
 
@@ -97,7 +115,6 @@ def generate_cert_csv(
 def generate_email_csv(output_path: Path, users: list[str], anomaly_users: list[str]) -> None:
     """Generate email activity CSV."""
     random.seed(43)
-    cert_domain = "dtaa.com"
 
     start_date = _utcnow() - timedelta(days=17)
 
@@ -114,48 +131,41 @@ def generate_email_csv(output_path: Path, users: list[str], anomaly_users: list[
             for day_offset in range(14):
                 current_date = start_date + timedelta(days=day_offset)
 
-                num_emails = random.randint(2, 8) if not is_anomaly else random.randint(15, 30)
-                for _ in range(num_emails):
-                    hour = random.randint(8, 19)
-                    minute = random.randint(0, 59)
-                    second = random.randint(0, 59)
-                    dt = current_date.replace(hour=hour, minute=minute, second=second)
+                if not is_anomaly:
+                    num_emails = random.randint(2, 8)
+                    for _ in range(num_emails):
+                        hour = random.randint(8, 19)
+                        minute = random.randint(0, 59)
+                        second = random.randint(0, 59)
+                        dt = current_date.replace(hour=hour, minute=minute, second=second)
+                        to_addr = f"internal.{random.choice(users).lower()}" if random.random() < 0.8 else f"external@{random.choice(['gmail.com', 'yahoo.com', 'outlook.com'])}"
+                        size = random.randint(1000, 500000)
+                        attachments = random.randint(0, 5)
+                        writer.writerow([row_id, dt.strftime("%m/%d/%Y %H:%M:%S"), user, pc, to_addr, user.lower(), "send", size, attachments])
+                        row_id += 1
+                else:
+                    num_emails = random.randint(15, 30)
+                    for _ in range(num_emails):
+                        hour = random.randint(0, 23)
+                        minute = random.randint(0, 59)
+                        second = random.randint(0, 59)
+                        dt = current_date.replace(hour=hour, minute=minute, second=second)
+                        to_addr = f"internal.{random.choice(users).lower()}" if random.random() < 0.8 else f"external@{random.choice(['gmail.com', 'yahoo.com', 'outlook.com'])}"
+                        size = random.randint(1000, 500000)
+                        attachments = random.randint(0, 5)
+                        writer.writerow([row_id, dt.strftime("%m/%d/%Y %H:%M:%S"), user, pc, to_addr, user.lower(), "send", size, attachments])
+                        row_id += 1
 
-                    to_addr = f"internal.{random.choice(users).lower()}" if random.random() < 0.8 else f"external@{random.choice(['gmail.com', 'yahoo.com', 'outlook.com'])}"
-
-                    size = random.randint(1000, 500000)
-                    attachments = random.randint(0, 5)
-
-                    writer.writerow([
-                        row_id,
-                        dt.strftime("%m/%d/%Y %H:%M:%S"),
-                        user,
-                        pc,
-                        to_addr,
-                        user.lower(),
-                        "send",
-                        size,
-                        attachments
-                    ])
-                    row_id += 1
-
-                if is_anomaly:
-                    for _ in range(random.randint(10, 20)):
+                    num_external = random.randint(100, 200)
+                    for _ in range(num_external):
+                        hour = random.randint(0, 23)
+                        minute = random.randint(0, 59)
+                        second = random.randint(0, 59)
+                        dt = current_date.replace(hour=hour, minute=minute, second=second)
                         external_addr = f"external_{random.randint(1000, 9999)}@suspicious-domain.com"
                         size = random.randint(1000000, 10000000)
                         attachments = random.randint(3, 10)
-
-                        writer.writerow([
-                            row_id,
-                            dt.strftime("%m/%d/%Y %H:%M:%S"),
-                            user,
-                            pc,
-                            external_addr,
-                            user.lower(),
-                            "send",
-                            size,
-                            attachments
-                        ])
+                        writer.writerow([row_id, dt.strftime("%m/%d/%Y %H:%M:%S"), user, pc, external_addr, user.lower(), "send", size, attachments])
                         row_id += 1
 
 
@@ -168,7 +178,7 @@ def run_pipeline(base_url: str, token: str) -> dict:
     results = {}
 
     with httpx.Client(base_url=base_url, timeout=120.0) as client:
-        print("\n[1/5] Generating synthetic CERT data...")
+        print("\n[1/6] Generating synthetic CERT data...")
         data_dir = Path(__file__).parent.parent / "backend" / "data" / "demo"
         data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -183,7 +193,7 @@ def run_pipeline(base_url: str, token: str) -> dict:
         generate_email_csv(email_csv, users, anomaly_users)
         print(f"  Generated email data: {email_csv}")
 
-        print("\n[2/5] Ingesting logon data...")
+        print("\n[2/6] Ingesting logon data...")
         with open(logon_csv, "rb") as f:
             resp = client.post(
                 "/api/v1/ingestion/upload",
@@ -197,7 +207,7 @@ def run_pipeline(base_url: str, token: str) -> dict:
         print(f"  Events stored: {job_result['job']['events_stored']}")
         results["logon_ingestion"] = job_result
 
-        print("\n[3/5] Ingesting email data...")
+        print("\n[3/6] Ingesting email data...")
         with open(email_csv, "rb") as f:
             resp = client.post(
                 "/api/v1/ingestion/upload",
@@ -214,7 +224,7 @@ def run_pipeline(base_url: str, token: str) -> dict:
         end = _utcnow()
         start = end - timedelta(days=17)
 
-        print(f"\n[4/5] Generating behavioral features ({start.date()} to {end.date()})...")
+        print(f"\n[4/6] Generating behavioral features ({start.date()} to {end.date()})...")
         resp = client.post(
             "/api/v1/behavioral/generate",
             headers=headers,
@@ -231,7 +241,25 @@ def run_pipeline(base_url: str, token: str) -> dict:
         print(f"  Users processed: {feat_result['users_processed']}")
         results["features"] = feat_result
 
-        print("\n[5/5] Running anomaly detection...")
+        print("\n[5/6] Training ML model...")
+        resp = client.post(
+            "/api/v1/anomaly/train",
+            headers=headers,
+            json={
+                "source_dataset": "cert",
+                "window": "daily",
+            },
+        )
+        if resp.status_code != 200:
+            print(f"  WARNING: Model training returned {resp.status_code}")
+            print(f"  Response: {resp.text[:500]}")
+        else:
+            train_result = resp.json()
+            print(f"  Training status: {train_result.get('status', 'unknown')}")
+            print(f"  Model version: {train_result.get('model_version', 'unknown')}")
+            results["training"] = train_result
+
+        print("\n[6/6] Running anomaly detection...")
         resp = client.post(
             "/api/v1/anomaly/detect",
             headers=headers,
@@ -243,9 +271,7 @@ def run_pipeline(base_url: str, token: str) -> dict:
             },
         )
         if resp.status_code == 500 and "Model artifact not found" in resp.text:
-            print("  WARNING: ML model not trained yet. Run model training first:")
-            print("    POST /api/v1/anomaly/train with training data")
-            print("  Skipping anomaly detection.")
+            print("  ERROR: ML model not found. Training may have failed.")
             results["anomalies"] = None
         elif resp.status_code != 200:
             print(f"  WARNING: Anomaly detection returned {resp.status_code}")
@@ -255,9 +281,17 @@ def run_pipeline(base_url: str, token: str) -> dict:
             anomaly_result = resp.json()
             print(f"  Anomalies detected: {anomaly_result['count']}")
             print(f"  Risk levels: {anomaly_result['risk_levels']}")
+
+            anomaly_count = anomaly_result['count']
+            prediction_counts = {}
+            for r in anomaly_result.get('results', []):
+                p = r.get('prediction', 'unknown')
+                prediction_counts[p] = prediction_counts.get(p, 0) + 1
+            print(f"  Predictions: {prediction_counts}")
+
             results["anomalies"] = anomaly_result
 
-            if anomaly_result["count"] > 0:
+            if anomaly_count > 0:
                 print("\n[Bonus] Generating alerts...")
                 resp = client.post(
                     "/api/v1/alerts/generate",

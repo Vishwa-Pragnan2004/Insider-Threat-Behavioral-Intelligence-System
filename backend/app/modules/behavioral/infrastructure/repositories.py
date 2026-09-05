@@ -74,15 +74,16 @@ class MongoBehavioralFeatureStore(IBehavioralFeatureStore):
         count = 0
         for f in features:
             doc = self._to_doc(f)
-            # Idempotency: same (user, window, window_start, source) -> replace
+            doc_id = doc.pop("_id")
+            filter_doc = {
+                "user_id": f.user_id,
+                "window": f.window,
+                "window_start": f.window_start,
+                "source_dataset": f.source_dataset,
+                "feature_version": f.feature_version,
+            }
             await coll.update_one(
-                {
-                    "user_id": f.user_id,
-                    "window": f.window,
-                    "window_start": f.window_start,
-                    "source_dataset": f.source_dataset,
-                    "feature_version": f.feature_version,
-                },
+                filter_doc,
                 {"$set": doc},
                 upsert=True,
             )
@@ -134,6 +135,20 @@ class MongoBehavioralFeatureStore(IBehavioralFeatureStore):
             if end is not None:
                 ts_q["$lt"] = end
             query["window_start"] = ts_q
+        cursor = self.db[self.COLLECTION].find(query).sort("window_start", 1)
+        return [self._from_doc(doc) async for doc in cursor]
+
+    async def list_all_features(
+        self,
+        source_dataset: str | None = None,
+        window: str | None = None,
+    ) -> list[BehavioralFeatures]:
+        """List all feature rows for ML training."""
+        query: dict = {}
+        if source_dataset is not None:
+            query["source_dataset"] = source_dataset
+        if window is not None:
+            query["window"] = window
         cursor = self.db[self.COLLECTION].find(query).sort("window_start", 1)
         return [self._from_doc(doc) async for doc in cursor]
 

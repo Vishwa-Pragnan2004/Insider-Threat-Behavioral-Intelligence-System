@@ -20,6 +20,9 @@ from app.modules.anomaly.application.model_service import (
     DEFAULT_ARTIFACT_PATH,
     ModelService,
 )
+from app.modules.anomaly.application.model_training_service import (
+    ModelTrainingService,
+)
 from app.modules.anomaly.domain.entities import AnomalyResult
 from app.modules.anomaly.infrastructure.mongo_result_store import (
     MongoAnomalyResultStore,
@@ -133,3 +136,9 @@ def get_anomaly_detection_service(
         result_store=result_store,
         alert_observer=alert_observer,
     )
+
+
+def get_training_service(
+    feature_store: MongoBehavioralFeatureStore = Depends(get_feature_store),
+) -> ModelTrainingService:
+    return ModelTrainingService(feature_store=feature_store)

@@ -3,6 +3,7 @@ ITBIS — Anomaly Module: API Router
 
 Endpoints (all under /api/v1/anomaly):
   POST  /detect          -> run anomaly detection
+  POST  /train           -> train anomaly model on behavioral features
   GET   /results         -> list recent results (filter by risk_level)
   GET   /results/{id}    -> fetch a single result
   GET   /users/{id}      -> list a user's results
@@ -24,8 +25,10 @@ from app.modules.anomaly.application.dtos import (
     AnomalyResultResponse,
     BehavioralDeviationResponse,
     ModelInfoResponse,
+    TrainRequest,
 )
 from app.modules.anomaly.application.model_service import ModelService
+from app.modules.anomaly.application.model_training_service import ModelTrainingService
 from app.modules.anomaly.domain.enums import AnomalyPrediction, RiskLevel
 from app.modules.anomaly.domain.exceptions import (
     FeatureIncompatibilityError,
@@ -38,6 +41,7 @@ from app.modules.anomaly.presentation.dependencies import (
     get_anomaly_detection_service,
     get_model_service,
     get_result_store,
+    get_training_service,
 )
 from app.modules.identity.domain.entities import User
 from app.modules.identity.domain.enums import PermissionName
@@ -247,3 +251,41 @@ async def get_model_info(
         score_high=art.score_high,
         phase4_feature_compatible=compatible,
     )
+
+
+@router.post(
+    "/train",
+    status_code=status.HTTP_200_OK,
+    summary="Train anomaly detection model on behavioral features",
+    dependencies=[Depends(require_permission(PermissionName.ANOMALY_CREATE))],
+)
+async def train_model(
+    payload: TrainRequest,
+    current_user: User = Depends(require_active_user),
+    training_service: ModelTrainingService = Depends(get_training_service),
+):
+    """Train an Isolation Forest model on behavioral features.
+
+    The model artifact is saved to disk and will be loaded automatically
+    by the anomaly detection service for subsequent inference.
+    """
+    try:
+        result = await training_service.train(
+            source_dataset=payload.source_dataset,
+            window=payload.window,
+            contamination=payload.contamination,
+            n_estimators=payload.n_estimators,
+        )
+        log.info("anomaly.train.completed_by_user", user=current_user.email)
+        return result
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        log.exception("anomaly.train.failed")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Training failed: {exc}",
+        ) from exc

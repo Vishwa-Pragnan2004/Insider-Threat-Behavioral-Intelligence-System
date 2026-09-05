@@ -22,11 +22,18 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Awaitable, Callable
-from datetime import datetime
+from datetime import datetime, UTC
 
 import structlog
 
 from app.modules.alerts.application.dtos import AlertGenerateResponse
+
+
+def _make_aware(dt: datetime) -> datetime:
+    """Ensure a datetime is timezone-aware (assumes UTC if naive)."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt
 from app.modules.alerts.application.policy import DEFAULT_POLICY, AlertPolicy
 from app.modules.alerts.domain.entities import Alert, AlertDeviation
 from app.modules.alerts.domain.enums import AlertSeverity, AlertStatus
@@ -173,15 +180,18 @@ class AlertGenerationService:
         created = 0
         skipped_dupes = 0
         skipped_below = 0
+        start_aware = _make_aware(start) if start is not None else None
+        end_aware = _make_aware(end) if end is not None else None
         for an in anomalies:
             # Apply ad-hoc filters that list_recent doesn't support
             if user_id is not None and an.user_id != user_id:
                 continue
             if source_dataset is not None and an.source_dataset != source_dataset:
                 continue
-            if start is not None and an.window_start < start:
+            window_start_aware = _make_aware(an.window_start)
+            if start_aware is not None and window_start_aware < start_aware:
                 continue
-            if end is not None and an.window_start >= end:
+            if end_aware is not None and window_start_aware >= end_aware:
                 continue
             risk_level = RiskLevel(an.risk_level)
             if not self.policy.should_alert(

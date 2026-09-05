@@ -21,6 +21,15 @@ class AnomalyDetectRequest(BaseModel):
     window: str = Field(default="daily")
 
 
+class TrainRequest(BaseModel):
+    """POST /api/v1/anomaly/train"""
+
+    source_dataset: str = Field(default="all")
+    window: str = Field(default="daily")
+    contamination: float = Field(default=0.1, description="Isolation Forest contamination parameter")
+    n_estimators: int = Field(default=100, description="Number of Isolation Forest trees")
+
+
 # ─── Response DTOs ─────────────────────────────────────────
 
 

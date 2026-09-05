@@ -40,6 +40,14 @@ class IBehavioralFeatureStore(ABC):
     ) -> list[BehavioralFeatures]:
         """List ALL feature rows in the [start, end) window (Phase 5 export)."""
 
+    @abstractmethod
+    async def list_all_features(
+        self,
+        source_dataset: str | None = None,
+        window: str | None = None,
+    ) -> list[BehavioralFeatures]:
+        """List all feature rows for ML training (no date filtering)."""
+
 
 class IBehavioralBaselineRepository(ABC):
     """Persistence for per-user behavioral baselines (Postgres)."""
