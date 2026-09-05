@@ -268,6 +268,42 @@ async def test_notes_are_appended_in_order(
 
 
 @pytest.mark.asyncio
+async def test_investigation_detail_includes_notes(
+    async_client: AsyncClient, db_session: AsyncSession
+):
+    """GET /investigations/{id} should include all notes in the response."""
+    token = await investigator_token(async_client, db_session)
+    headers = {"Authorization": f"Bearer {token}"}
+    r = await async_client.post(
+        f"{INVESTIGATIONS_BASE}/",
+        json={"title": "Investigation with notes", "severity": "HIGH"},
+        headers=headers,
+    )
+    assert r.status_code == 201
+    iid = r.json()["id"]
+
+    for content in ("Initial assessment", "Evidence collected", "Escalated to SOC"):
+        r = await async_client.post(
+            f"{INVESTIGATIONS_BASE}/{iid}/notes",
+            json={"content": content},
+            headers=headers,
+        )
+        assert r.status_code == 201
+
+    r = await async_client.get(
+        f"{INVESTIGATIONS_BASE}/{iid}",
+        headers=headers,
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["title"] == "Investigation with notes"
+    assert body["notes"] is not None
+    assert len(body["notes"]) == 3
+    contents = [n["content"] for n in body["notes"]]
+    assert contents == ["Initial assessment", "Evidence collected", "Escalated to SOC"]
+
+
+@pytest.mark.asyncio
 async def test_notes_have_no_update_or_delete_endpoints(
     async_client: AsyncClient, db_session: AsyncSession
 ):

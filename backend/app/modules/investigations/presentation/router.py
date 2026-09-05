@@ -167,7 +167,11 @@ async def get_investigation(
     service: InvestigationService = Depends(get_investigation_service),
 ):
     try:
-        return _to_response(await service.get(investigation_id))
+        inv = await service.get(investigation_id)
+        notes = await service.list_notes(investigation_id)
+        response = _to_response(inv)
+        response.notes = [_note_to_response(n) for n in notes]
+        return response
     except InvestigationNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
