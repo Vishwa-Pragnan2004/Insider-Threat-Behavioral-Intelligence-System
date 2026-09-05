@@ -337,6 +337,30 @@ project2/
 
 ---
 
+## Quick Demo
+
+Run the automated demo pipeline that generates synthetic CERT data and verifies the full detection flow:
+
+```bash
+# From the project root
+cd backend
+python ..\scripts\run_demo.py --base-url http://localhost:8000
+
+# Or from project root
+python scripts/run_demo.py --base-url http://localhost:8000
+```
+
+This script will:
+1. Generate synthetic CERT-format logon + email CSV data with anomaly patterns
+2. Ingest both CSVs via `POST /api/v1/ingestion/upload`
+3. Generate behavioral features via `POST /api/v1/behavioral/generate`
+4. Run anomaly detection via `POST /api/v1/anomaly/detect`
+5. Generate alerts via `POST /api/v1/alerts/generate`
+
+Output is saved to `backend/data/demo/demo_logon.csv` and `backend/data/demo/demo_email.csv`.
+
+---
+
 ## Demo Workflow
 
 A step-by-step guide to demonstrate the full ITBIS detection pipeline.
@@ -384,7 +408,9 @@ curl -X POST http://localhost:8000/api/v1/ingestion/upload \
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/behavioral/generate \
-  -H "Authorization: Bearer <token>"
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"start": "2025-08-20T00:00:00Z", "end": "2025-09-05T00:00:00Z", "source_dataset": "cert", "window": "daily"}'
 ```
 
 This computes 16 behavioral features per user (login frequency, file access patterns, email activity, etc.) and builds user baselines.
@@ -395,7 +421,9 @@ This computes 16 behavioral features per user (login frequency, file access patt
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/anomaly/detect \
-  -H "Authorization: Bearer <token>"
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"start": "2025-08-20T00:00:00Z", "end": "2025-09-05T00:00:00Z", "source_dataset": "cert", "window": "daily"}'
 ```
 
 The Isolation Forest model scores each user against their behavioral baseline. High anomaly scores indicate potential insider threat behavior.
@@ -406,7 +434,9 @@ The Isolation Forest model scores each user against their behavioral baseline. H
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/alerts/generate \
-  -H "Authorization: Bearer <token>"
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"start": "2025-08-20T00:00:00Z", "end": "2025-09-05T00:00:00Z", "limit": 50}'
 ```
 
 Alert policies evaluate anomaly results and create security alerts for high-risk users.
