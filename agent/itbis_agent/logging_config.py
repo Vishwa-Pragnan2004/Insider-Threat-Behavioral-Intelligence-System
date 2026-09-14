@@ -18,8 +18,11 @@ def configure_logging(cfg: LoggingConfig) -> None:
     timestamper = structlog.processors.TimeStamper(fmt="iso", utc=True)
     shared_processors: list = [
         structlog.contextvars.merge_contextvars,
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.add_logger_name,
+        # The logger factory below yields structlog PrintLoggers, not stdlib
+        # loggers, so structlog.stdlib.* processors don't belong here:
+        # stdlib.add_logger_name reads `logger.name`, which PrintLogger lacks,
+        # and crashed the agent CLI on its very first log line.
+        structlog.processors.add_log_level,
         timestamper,
         structlog.processors.StackInfoRenderer(),
     ]

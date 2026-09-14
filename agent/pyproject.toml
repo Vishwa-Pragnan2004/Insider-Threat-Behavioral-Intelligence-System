@@ -28,7 +28,10 @@ dev = [
     "pytest-asyncio>=0.23,<1",
     "pytest-cov>=5,<7",
     "respx>=0.21,<1",
-    "ruff>=0.8,<1",
+    # Pinned, not a range: the backend pins ruff==0.8.4, and a floating
+    # range resolved to 0.16.x here — so the two components linted to
+    # different standards and results changed without any code change.
+    "ruff==0.8.4",
 ]
 
 [project.scripts]
@@ -46,7 +49,17 @@ addopts = ["--strict-markers", "--tb=short"]
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+exclude = [".venv/", "venv/"]
+
+[tool.ruff.lint]
 extend-select = ["E", "F", "I", "N", "W", "B", "UP"]
+ignore = [
+    # UP042 would rewrite `class X(str, Enum)` as `StrEnum`.  These enums
+    # mirror the server's canonical_event schema verbatim and must serialise
+    # identically; StrEnum changes str() behaviour, so they stay as-is until
+    # the server-side definitions move together.
+    "UP042",
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["itbis_agent"]

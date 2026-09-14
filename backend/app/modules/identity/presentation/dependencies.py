@@ -4,7 +4,7 @@ Reusable dependencies for authentication and RBAC.
 """
 
 import uuid
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -35,13 +35,13 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
     except TokenInvalidError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
     user_id_str = payload.get("sub")
     if user_id_str is None:
@@ -49,7 +49,7 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
     try:
         user_id = uuid.UUID(user_id_str)
@@ -58,7 +58,7 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
     user_repo = SQLUserRepository(db)
     user = await user_repo.get_by_id(user_id)
@@ -68,7 +68,7 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
     return user
 
@@ -81,14 +81,18 @@ async def require_active_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Account is disabled",
-        )
+        ) from None
     return current_user
 
 
 def require_permission(required_permission: PermissionName) -> Callable:
     """
     Dependency factory for RBAC.
-    Usage: @router.get("/foo", dependencies=[Depends(require_permission(PermissionName.ALERTS_READ))])
+    Usage:
+        @router.get(
+            "/foo",
+            dependencies=[Depends(require_permission(PermissionName.ALERTS_READ))],
+        )
     """
 
     async def _require_permission(

@@ -135,7 +135,14 @@ def build_32_features(
 
     for name in artifact.feature_columns:
         if baseline_source == "personal":
-            mean = _lookup_mean(chosen_stats, name) or float(artifact.global_means.get(name, 0.0))
+            # A personal mean of 0 is real information (e.g. never uses USB), not a
+            # missing value: fall back to the population mean only when absent.
+            personal_mean = _lookup_mean(chosen_stats, name)
+            mean = (
+                personal_mean
+                if personal_mean is not None
+                else float(artifact.global_means.get(name, 0.0))
+            )
             std = _lookup_std(chosen_stats, name)
             if std is None or std == 0.0:
                 std = _safe_std(artifact.global_stds.get(name, 0.0))

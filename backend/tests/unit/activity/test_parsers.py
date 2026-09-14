@@ -244,3 +244,17 @@ def test_psychometric_parser_missing_employee_id_raises():
     parser = PsychometricParser()
     with pytest.raises(MalformedRecordError):
         parser.parse_row({"name": "Bob"}, row_number=2, job_id=JOB_ID)
+
+
+def test_cert_r42_file_log_without_activity_is_a_copy_to_removable_media():
+    """r4.2's file.csv has no activity column; every row is a copy to removable media."""
+    from app.modules.activity.application.parsers.file_parser import FileParser
+    from app.shared.schemas.canonical_event import EventType
+
+    assert FileParser.can_parse({"id", "date", "user", "pc", "filename", "content"})
+    row = {"id": "{K2J1}", "date": "08/12/2010 14:54:16", "user": "BBS0039",
+           "pc": "PC-9436", "filename": "GGX5KL22.exe", "content": "4D-5A"}
+    event = FileParser().parse_row(row, 1, "job-1")
+    assert event.event_type == EventType.FILE_COPY
+    assert event.target_type == "removable_media"
+    assert event.risk_indicators == ["file_copied_to_removable_media"]

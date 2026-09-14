@@ -1,7 +1,6 @@
 """
 ITBIS — Alerts Module: FastAPI Dependencies
 """
-# ruff: noqa: B008
 from collections.abc import Awaitable, Callable
 
 import structlog

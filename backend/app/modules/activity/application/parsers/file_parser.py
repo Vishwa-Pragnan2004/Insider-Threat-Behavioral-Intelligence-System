@@ -3,6 +3,9 @@ ITBIS — CERT File Activity Log Parser
 
 Handles CERT dataset file.csv variants.
 Typical columns (v4.x): id, date, user, pc, filename, activity, content
+
+Release r4.2 has no activity column: there every row is a file copied to
+removable media (see the dataset readme), so a missing activity means "copy".
 """
 from typing import Any
 
@@ -16,7 +19,7 @@ class FileParser(BaseParser):
 
     LOG_TYPE = LogType.FILE
     SOURCE_DATASET = "cert"
-    REQUIRED_COLUMNS = {"user", "date", "filename", "activity"}
+    REQUIRED_COLUMNS = {"user", "date", "filename"}
 
     COLUMN_ALIASES = {
         "user":     ["user", "userid", "user_id", "employee"],
@@ -45,7 +48,7 @@ class FileParser(BaseParser):
         raw_date = self.resolve_required(row, "date", row_number)
         timestamp = self.parse_timestamp(raw_date, row_number)
         filename = self.resolve_required(row, "filename", row_number)
-        activity_raw = (self.resolve_required(row, "activity", row_number) or "").lower().strip()
+        activity_raw = (self.resolve_column(row, "activity") or "copy").lower().strip()
         event_type = self._ACTIVITY_MAP.get(activity_raw, EventType.FILE_READ)
         device_id = self.resolve_column(row, "pc")
 
@@ -60,8 +63,11 @@ class FileParser(BaseParser):
             device_id=device_id,
             device_name=device_id,
             target_resource=filename,
-            target_type="file",
+            target_type="removable_media" if event_type == EventType.FILE_COPY else "file",
             action=activity_raw,
+            risk_indicators=(
+                ["file_copied_to_removable_media"] if event_type == EventType.FILE_COPY else []
+            ),
             raw_payload={**row, "_job_id": job_id},
             tags=[self.LOG_TYPE.value],
         )

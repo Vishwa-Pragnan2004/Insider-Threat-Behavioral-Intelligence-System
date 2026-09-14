@@ -18,6 +18,7 @@ explicit (`reload()`) and intended for tests.
 from __future__ import annotations
 
 import os
+import pathlib
 import threading
 import warnings
 from dataclasses import dataclass, field
@@ -35,10 +36,17 @@ from app.modules.behavioral.domain.enums import FEATURE_NAMES
 log = structlog.get_logger(__name__)
 
 
-# Default artifact path; can be overridden by the env var below.
+# Repository root, derived from this file rather than the process working
+# directory.  The default used to be the CWD-relative "./ml_model/...", so
+# `uvicorn` started from backend/ and from the repo root resolved to two
+# different artifacts — and the documented start-up procedure (cd backend)
+# picked up a throwaway model.  Always resolve to one known location; the
+# env var remains the supported override.
+_PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[5]
+
 DEFAULT_ARTIFACT_PATH = os.environ.get(
     "ITBIS_MODEL_PATH",
-    "./ml_model/itbis_behavior_model_v2.joblib",
+    str(_PROJECT_ROOT / "ml_model" / "itbis_behavior_model_v2.joblib"),
 )
 
 REQUIRED_ARTIFACT_KEYS = {
@@ -153,7 +161,7 @@ class ModelService:
 
         model = pkg["model"]
         scaler = pkg["scaler"]
-        if not callable(getattr(model, "score_samples", None)):
+        if not callable(getattr(model, "decision_function", None)):
             raise ModelLoadError(
                 "Artifact's `model` does not implement score_samples() — "
                 "this pipeline requires an Isolation Forest or compatible "
@@ -201,6 +209,12 @@ class ModelService:
             )
 
         metadata = dict(pkg.get("metadata", {}) or {})
+        score_low, score_high = float(pkg["score_low"]), float(pkg["score_high"])
+        if metadata.get("score_space") != "decision_function" and score_high <= 0.0:
+            # Older artifacts calibrated on score_samples(), which sits
+            # `offset_` below decision_function(). Shift into decision space.
+            offset = float(getattr(model, "offset_", 0.0))
+            score_low, score_high = score_low - offset, score_high - offset
         artifact = LoadedArtifact(
             path=path,
             model=model,
@@ -212,8 +226,8 @@ class ModelService:
             z_feature_columns=z_feature_columns,
             model_features=model_features,
             count_features=count_features,
-            score_low=float(pkg["score_low"]),
-            score_high=float(pkg["score_high"]),
+            score_low=score_low,
+            score_high=score_high,
             metadata=metadata,
             model_version=str(metadata.get("model_version", "unknown")),
             feature_version=str(metadata.get("feature_version", "unknown")),
@@ -235,8 +249,8 @@ class ModelService:
         """Run the Isolation Forest and return (prediction, raw_score).
 
         Prediction is 1 (normal) or -1 (anomaly) per sklearn convention.
-        `raw_score` is the output of `score_samples()` — more negative
-        is more anomalous.
+        `raw_score` is the output of `decision_function()`: >= 0 is
+        normal, < 0 anomalous, more negative is more anomalous.
         """
         art = self.get_artifact()
         # Use DataFrame so the fitted StandardScaler doesn't warn about
@@ -250,6 +264,26 @@ class ModelService:
         df = pd.DataFrame(arr, columns=art.model_features)
         scaled = art.scaler.transform(df)
         # sklearn 1.7 prefers ndarray input — feed the underlying array
-        score = float(art.model.score_samples(np.asarray(scaled))[0])
+        score = float(art.model.decision_function(np.asarray(scaled))[0])
         pred = int(art.model.predict(np.asarray(scaled))[0])
         return pred, score
+
+    def score_many(self, matrix: list[list[float]] | Any) -> tuple[list[int], list[float]]:
+        """Score many rows in one call: (predictions, decision scores), row-aligned.
+
+        Same semantics as `score`; batching matters when replaying a dataset,
+        where one model call per user-day would dominate the run time.
+        """
+        art = self.get_artifact()
+        import numpy as np
+        import pandas as pd
+
+        arr = np.asarray(matrix, dtype=np.float64)
+        if arr.size == 0:
+            return [], []
+        if arr.ndim == 1:
+            arr = arr.reshape(1, -1)
+        scaled = np.asarray(art.scaler.transform(pd.DataFrame(arr, columns=art.model_features)))
+        predictions = art.model.predict(scaled).astype(int).tolist()
+        scores = art.model.decision_function(scaled).astype(float).tolist()
+        return predictions, scores

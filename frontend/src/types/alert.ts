@@ -17,7 +17,7 @@ export interface AlertDeviation {
 export interface Alert {
   id: string;
   idempotency_key: string;
-  anomaly_result_id: string;
+  anomaly_result_id: string | null;
   user_id: string;
   source_dataset: string;
   window: string;
@@ -36,6 +36,26 @@ export interface Alert {
   top_behavioral_deviations: AlertDeviation[];
   created_at: string;
   updated_at: string;
+  acknowledged_at?: string | null;
+  resolved_at?: string | null;
+  /** Older alerts predate this field; treat missing as 'behavioral_model'. */
+  source?: AlertSource;
+  categories?: string[];
+  findings?: AlertFinding[];
+  employee_risk_score?: number | null;
+  priority?: number | null;
+  risk_components?: Record<string, number>;
+}
+
+export type AlertSource = 'behavioral_model' | 'insider_risk';
+
+export interface AlertFinding {
+  category: string;
+  title: string;
+  severity: number;
+  description: string;
+  detector: string;
+  day: string;
 }
 
 export interface AlertListResponse {

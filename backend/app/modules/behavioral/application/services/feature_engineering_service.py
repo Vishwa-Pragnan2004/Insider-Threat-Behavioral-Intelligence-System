@@ -172,6 +172,7 @@ class FeatureEngineeringService:
         history_start: datetime,
         history_end: datetime,
         source_dataset: str = "all",
+        min_observation_days: int = 0,
     ) -> BehavioralBaseline:
         """
         Build a per-user baseline from historical events.
@@ -218,6 +219,12 @@ class FeatureEngineeringService:
         observation_days = sum(
             1 for r in daily_rows if any(v > 0 for v in r["features"].values())
         )
+        if observation_days < min_observation_days:
+            raise NoDataForBaselineError(
+                f"User {user_id!r} has {observation_days} active day(s) in "
+                f"[{history_start}, {history_end}); a personal baseline needs "
+                f"{min_observation_days}."
+            )
         baseline = BehavioralBaseline(
             user_id=user_id,
             feature_version=FEATURE_VERSION,
@@ -301,9 +308,15 @@ class FeatureEngineeringService:
         users: set[str] = set()
         for e in events:
             uid = e.get("user_id")
-            if uid:
+            if uid and uid not in NON_PERSON_USER_IDS:
                 users.add(uid)
         return sorted(users)
+
+
+#: Placeholder ids for activity whose owner couldn't be resolved (e.g. a process
+#: that exited before the agent looked it up). They are not a person, so they get
+#: no behavioural profile; the events stay stored and searchable.
+NON_PERSON_USER_IDS = frozenset({"unknown"})
 
 
 # ─── Internal helpers ───────────────────────────────────────
@@ -315,7 +328,16 @@ def _ts(ev: dict) -> datetime:
 
     value = ev.get("timestamp")
     if isinstance(value, _dt):
-        return value
-    if isinstance(value, str):
-        return _dt.fromisoformat(value.replace("Z", "+00:00"))
-    return _dt.fromtimestamp(0, tz=UTC)
+        parsed = value
+    elif isinstance(value, str):
+        try:
+            parsed = _dt.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return _dt.fromtimestamp(0, tz=UTC)
+    else:
+        return _dt.fromtimestamp(0, tz=UTC)
+    # Feature windows are timezone-aware UTC. A timestamp without an offset
+    # (MongoDB returns BSON dates naive; earlier agent builds sent naive strings)
+    # is treated as UTC: comparing it as-is raised TypeError and failed the
+    # entire feature run, not just that one event.
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)

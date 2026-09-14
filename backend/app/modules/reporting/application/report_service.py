@@ -29,7 +29,7 @@ class ReportService:
     ) -> tuple[str, list[dict]]:
         status_enum = AlertStatus(status) if status else None
         severity_enum = AlertSeverity(severity) if severity else None
-        
+
         alerts, total = await self._alert_service.list(
             status=status_enum,
             severity=severity_enum,
@@ -64,7 +64,7 @@ class ReportService:
         status: str | None = None,
     ) -> tuple[str, list[dict]]:
         status_enum = InvestigationStatus(status) if status else None
-        
+
         investigations, total = await self._investigation_service.list(
             status=status_enum,
             skip=0,

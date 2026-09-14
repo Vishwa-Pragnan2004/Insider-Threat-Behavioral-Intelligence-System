@@ -45,7 +45,7 @@ class AnomalyResult:
     feature_version: str        # the model's expected feature version
 
     prediction: AnomalyPrediction
-    raw_anomaly_score: float    # Isolation Forest score_samples() output
+    raw_anomaly_score: float    # Isolation Forest decision_function(): < 0 is anomalous
     risk_score: float           # 0..100 normalised
     risk_level: RiskLevel
 

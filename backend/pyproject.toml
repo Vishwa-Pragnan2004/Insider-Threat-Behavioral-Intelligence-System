@@ -22,8 +22,23 @@ markers = [
 [tool.ruff]
 target-version = "py311"
 line-length = 100
-extend-select = ["E", "F", "I", "N", "W", "B", "UP"]
 exclude = ["alembic/", ".venv/", "venv/"]
+
+[tool.ruff.lint]
+extend-select = ["E", "F", "I", "N", "W", "B", "UP"]
+ignore = [
+    # B008 forbids function calls in argument defaults, but `Depends(...)`,
+    # `Query(...)` and `File(...)` in defaults *are* the FastAPI idiom — the
+    # framework evaluates them per-request, so the rule's rationale does not
+    # apply here.  Previously suppressed with scattered per-file noqa headers.
+    "B008",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# N806 wants lowercase locals, but `X` / `X_scaled` for a feature matrix is
+# the universal scikit-learn convention; renaming them would make the ML code
+# read *less* like every other sklearn pipeline.
+"app/modules/anomaly/application/model_training_service.py" = ["N806"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

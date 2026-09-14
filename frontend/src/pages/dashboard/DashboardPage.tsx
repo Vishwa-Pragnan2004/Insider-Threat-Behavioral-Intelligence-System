@@ -111,8 +111,10 @@ export default function DashboardPage() {
   const anomalyPredictionData = useMemo(() => {
     if (!anomalyResults) return [];
     const counts: Record<string, number> = { NORMAL: 0, ANOMALY: 0 };
+    // The API returns lowercase predictions ("normal" / "anomaly").
     anomalyResults.results.forEach(r => {
-      if (r.prediction in counts) counts[r.prediction]++;
+      const prediction = r.prediction.toUpperCase();
+      if (prediction in counts) counts[prediction]++;
     });
     return Object.entries(counts)
       .filter(([, v]) => v > 0)

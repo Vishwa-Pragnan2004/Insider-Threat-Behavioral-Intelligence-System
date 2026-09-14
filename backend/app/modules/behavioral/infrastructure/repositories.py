@@ -74,7 +74,6 @@ class MongoBehavioralFeatureStore(IBehavioralFeatureStore):
         count = 0
         for f in features:
             doc = self._to_doc(f)
-            doc_id = doc.pop("_id")
             filter_doc = {
                 "user_id": f.user_id,
                 "window": f.window,
@@ -82,9 +81,13 @@ class MongoBehavioralFeatureStore(IBehavioralFeatureStore):
                 "source_dataset": f.source_dataset,
                 "feature_version": f.feature_version,
             }
+            # _id is immutable once the document exists: write it only on insert.
+            # Setting a fresh _id on every recompute made re-generating a window
+            # (which every scheduled pipeline run does) fail with WriteError.
+            doc_id = doc.pop("_id")
             await coll.update_one(
                 filter_doc,
-                {"$set": doc},
+                {"$set": doc, "$setOnInsert": {"_id": doc_id}},
                 upsert=True,
             )
             count += 1

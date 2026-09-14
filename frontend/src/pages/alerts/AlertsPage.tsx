@@ -23,10 +23,7 @@ import {
   Alert,
   Snackbar,
 } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import CloseIcon from '@mui/icons-material/Close';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import { Refresh, Close, Visibility, AutoAwesome } from '@mui/icons-material';
 import PageHeader from '../../components/common/PageHeader';
 import SeverityBadge from '../../components/common/SeverityBadge';
 import StatusBadge from '../../components/common/StatusBadge';
@@ -34,6 +31,22 @@ import EmptyState from '../../components/common/EmptyState';
 import type { AlertSeverity, AlertStatus } from '../../types';
 import { listAlerts, acknowledgeAlert, updateAlertStatus, generateAlerts } from '../../api/alertService';
 import type { Alert as AlertType, AlertDeviation, AlertListParams } from '../../types/alert';
+import { RiskScoreChip } from '../dashboards/shared';
+import { CategoryChip, EmployeeLink, categoryLabel, componentLabel, formatDay, useRiskModel } from '../risk/riskShared';
+import { useAuth } from '../../hooks/useAuth';
+import { hasPermission } from '../../utils/permissions';
+
+const isInsiderRisk = (a: AlertType) => a.source === 'insider_risk';
+
+function InsiderRiskChip() {
+  return (
+    <Chip
+      label="Insider risk"
+      size="small"
+      sx={{ bgcolor: 'rgba(239,68,68,0.12)', color: '#ef4444', fontWeight: 600, fontSize: '0.7rem', height: 20 }}
+    />
+  );
+}
 
 const SEVERITIES: AlertSeverity[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const STATUSES: AlertStatus[] = ['OPEN', 'ACKNOWLEDGED', 'IN_PROGRESS', 'RESOLVED', 'FALSE_POSITIVE'];
@@ -56,6 +69,10 @@ interface FilterState {
 
 export default function AlertsPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const canReadRisk = hasPermission(user, 'anomaly:read');
+  // Only used for component labels in the detail drawer; falls back to default labels.
+  const riskModel = useRiskModel(canReadRisk).data;
 
   const [filters, setFilters] = useState<FilterState>({ severity: '', status: '', search: '' });
   const [page, setPage] = useState(0);
@@ -133,7 +150,7 @@ export default function AlertsPage() {
         actions={
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
-              startIcon={generateMutation.isPending ? <CircularProgress size={16} /> : <AutoAwesomeIcon />}
+              startIcon={generateMutation.isPending ? <CircularProgress size={16} /> : <AutoAwesome />}
               onClick={() => generateMutation.mutate()}
               variant="contained"
               size="small"
@@ -142,7 +159,7 @@ export default function AlertsPage() {
               {generateMutation.isPending ? 'Generating...' : 'Generate Alerts'}
             </Button>
             <Button
-              startIcon={<RefreshIcon />}
+              startIcon={<Refresh />}
               onClick={handleRefresh}
               variant="outlined"
               size="small"
@@ -245,11 +262,26 @@ export default function AlertsPage() {
                       <StatusBadge status={alert.status as AlertStatus} />
                     </TableCell>
                     <TableCell>
-                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                        {alert.user_id}
-                      </Typography>
+                      {isInsiderRisk(alert) && canReadRisk ? (
+                        <EmployeeLink userId={alert.user_id} />
+                      ) : (
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                          {alert.user_id}
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell sx={{ maxWidth: 300 }}>
+                      {isInsiderRisk(alert) && (
+                        <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap" sx={{ mb: 0.5 }}>
+                          <InsiderRiskChip />
+                          {(alert.categories ?? []).slice(0, 3).map((c) => (
+                            <CategoryChip key={c} label={categoryLabel(c)} />
+                          ))}
+                          {(alert.categories?.length ?? 0) > 3 && (
+                            <CategoryChip label={'+' + String((alert.categories?.length ?? 0) - 3)} />
+                          )}
+                        </Stack>
+                      )}
                       <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
                         {alert.title || 'Untitled Alert'}
                       </Typography>
@@ -263,6 +295,11 @@ export default function AlertsPage() {
                       <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 600, color: SEVERITY_COLORS[alert.severity] ?? 'inherit' }}>
                         {alert.risk_score.toFixed(1)}
                       </Typography>
+                      {isInsiderRisk(alert) && alert.priority != null && (
+                        <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+                          priority {alert.priority.toFixed(1)}
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       {alert.investigation_id ? (
@@ -279,7 +316,7 @@ export default function AlertsPage() {
                     <TableCell align="center">
                       <Tooltip title="View details">
                         <IconButton size="small" onClick={() => setSelectedAlert(alert)}>
-                          <VisibilityIcon fontSize="small" />
+                          <Visibility fontSize="small" />
                         </IconButton>
                       </Tooltip>
                     </TableCell>
@@ -309,15 +346,24 @@ export default function AlertsPage() {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
                 <Typography variant="h6">Alert Details</Typography>
                 <IconButton size="small" onClick={() => setSelectedAlert(null)}>
-                  <CloseIcon />
+                  <Close />
                 </IconButton>
               </Box>
 
               <Stack spacing={2}>
-                <Box sx={{ display: 'flex', gap: 2 }}>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                   <SeverityBadge severity={selectedAlert.severity as AlertSeverity} />
                   <StatusBadge status={selectedAlert.status as AlertStatus} />
+                  {isInsiderRisk(selectedAlert) && <InsiderRiskChip />}
                 </Box>
+
+                {isInsiderRisk(selectedAlert) && (selectedAlert.categories?.length ?? 0) > 0 && (
+                  <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+                    {(selectedAlert.categories ?? []).map((c) => (
+                      <CategoryChip key={c} label={categoryLabel(c)} />
+                    ))}
+                  </Stack>
+                )}
 
                 <Box>
                   <Typography variant="caption" color="text.secondary">TITLE</Typography>
@@ -335,7 +381,11 @@ export default function AlertsPage() {
 
                 <Box>
                   <Typography variant="caption" color="text.secondary">USER ID</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{selectedAlert.user_id}</Typography>
+                  {isInsiderRisk(selectedAlert) && canReadRisk ? (
+                    <Box><EmployeeLink userId={selectedAlert.user_id} /></Box>
+                  ) : (
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{selectedAlert.user_id}</Typography>
+                  )}
                 </Box>
 
                 <Box>
@@ -344,6 +394,31 @@ export default function AlertsPage() {
                     {selectedAlert.risk_score.toFixed(3)}
                   </Typography>
                 </Box>
+
+                {isInsiderRisk(selectedAlert) && (
+                  <Box sx={{ display: 'flex', gap: 4 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">PRIORITY</Typography>
+                      <Box><RiskScoreChip score={selectedAlert.priority} /></Box>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">EMPLOYEE RISK SCORE</Typography>
+                      <Box><RiskScoreChip score={selectedAlert.employee_risk_score} /></Box>
+                    </Box>
+                  </Box>
+                )}
+
+                {isInsiderRisk(selectedAlert) && Object.keys(selectedAlert.risk_components ?? {}).length > 0 && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">RISK COMPONENTS</Typography>
+                    {Object.entries(selectedAlert.risk_components ?? {}).map(([k, v]) => (
+                      <Box key={k} sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2">{componentLabel(riskModel, k)}</Typography>
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{v.toFixed(0)}</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
 
                 <Box>
                   <Typography variant="caption" color="text.secondary">SOURCE</Typography>
@@ -372,7 +447,26 @@ export default function AlertsPage() {
                   <Typography variant="body2">{new Date(selectedAlert.created_at).toLocaleString()}</Typography>
                 </Box>
 
-                {selectedAlert.top_behavioral_deviations.length > 0 && (
+                {isInsiderRisk(selectedAlert) && (selectedAlert.findings?.length ?? 0) > 0 && (
+                  <>
+                    <Divider />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Findings</Typography>
+                    {(selectedAlert.findings ?? []).map((f, i) => (
+                      <Box key={i} sx={{ bgcolor: 'background.default', borderRadius: 1, p: 1.5 }}>
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 0.5 }}>
+                          <RiskScoreChip score={f.severity} />
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>{f.title}</Typography>
+                        </Box>
+                        <Typography variant="body2" color="text.secondary">{f.description}</Typography>
+                        <Typography variant="caption" color="text.disabled">
+                          {categoryLabel(f.category)} · {f.detector} · {formatDay(f.day)}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </>
+                )}
+
+                {(selectedAlert.top_behavioral_deviations ?? []).length > 0 && (
                   <>
                     <Divider />
                     <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>Top Deviations</Typography>

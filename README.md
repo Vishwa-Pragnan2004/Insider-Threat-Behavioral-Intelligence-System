@@ -33,6 +33,7 @@ The system collects and processes activity logs, establishes behavioral baseline
 | 🚨 **Alert Management** | ✅ Implemented | Deduplication, severity, routing, enrichment |
 | 🔎 **Threat Investigation** | ✅ Implemented | Timeline, evidence collection, case management |
 | 📊 **SOC Dashboard** | ✅ Implemented | Real-time analyst view of threats and investigations |
+| 🖥️ **Endpoint Agent** | ✅ Implemented | Windows agent with per-device revocable credentials |
 | 📋 **Response Workflows** | 📋 Planned | Playbooks, automation, SOAR integration |
 | 📈 **Reporting** | ✅ Implemented | CSV export for alerts and investigations |
 
@@ -80,6 +81,11 @@ The system collects and processes activity logs, establishes behavioral baseline
 │  Redis       │  Kafka    │  MinIO  │ TimescaleDB  │
 └──────────────────────────────────────────────────┘
 ```
+
+> **Module status.** Seven modules are implemented: `identity`, `activity`,
+> `behavioral`, `anomaly`, `alerts`, `investigations`, `reporting`. The other
+> seven shown above (`users`, `assets`, `risk`, `ueba`, `response`,
+> `notifications`, `admin`) are directory scaffolds with no code or routes yet.
 
 ### Internal Module Structure (Clean Architecture)
 ```
@@ -180,7 +186,7 @@ Profiling    Detection
 |---|---|
 | Framework | React 18 + TypeScript |
 | Build Tool | Vite |
-| Styling | Tailwind CSS |
+| UI Components | Material UI (MUI) v5 |
 | Routing | React Router v6 |
 | Data Fetching | React Query (TanStack) |
 | HTTP | Axios |
@@ -319,7 +325,8 @@ project2/
 | **Phase 6.4** | ✅ Complete | Alert Generation Frontend — UI button |
 | **Phase 6.5** | ✅ Complete | End-to-End Verification — All flows tested |
 | **Phase 7** | 🔄 In Progress | Deployment, Documentation & Demo Readiness |
-| **Phase 8+** | ⏳ Pending | Risk Module, Notifications, Reporting, Response Workflows |
+| **Phase 8** | ✅ Complete | Agent device enrollment — per-device revocable credentials |
+| **Phase 9+** | ⏳ Pending | Risk Module, UEBA, Notifications, Response Workflows, frontend tests |
 
 ---
 
@@ -388,6 +395,26 @@ curl -X POST http://localhost:8000/api/v1/auth/login \
 ```
 
 Or open http://localhost:5173 in your browser and login with the credentials above.
+
+---
+
+### Step 1b — (Optional) Enroll a Windows endpoint agent
+
+To stream live activity from a Windows machine instead of uploading CSVs,
+enroll the device to obtain its own credential:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/agents/enroll   -H "Authorization: Bearer <admin-token>"   -H "Content-Type: application/json"   -d '{"device_id": "WS-001", "device_name": "Workstation 001"}'
+```
+
+The response contains `api_key` **once** — paste it into the agent's
+`config.yaml`. Each device holds a distinct key that can be revoked on its
+own (`DELETE /api/v1/agents/WS-001`) or rotated
+(`POST /api/v1/agents/WS-001/rotate`) without affecting other machines.
+
+See [agent/README.md](agent/README.md) for install and configuration, and
+[agent/config.example.yaml](agent/config.example.yaml) for every setting.
+Reading the Windows Security log requires **Administrator rights**.
 
 ---
 

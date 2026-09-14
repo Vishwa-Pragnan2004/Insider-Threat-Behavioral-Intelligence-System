@@ -62,17 +62,23 @@ presentation/    # API routers, request/response schemas
 | Auth | JWT (access + refresh tokens) |
 | Authorization | RBAC with permission checks |
 | Frontend | React + TypeScript + Vite |
-| UI Styling | Tailwind CSS |
+| UI Component Library | Material UI (MUI) v5 |
 | HTTP Client | Axios |
 | State Management | React Query |
 | Charts | Recharts |
 | Containerization | Docker + Docker Compose |
 | Testing (BE) | pytest + pytest-asyncio |
-| Testing (FE) | Vitest + React Testing Library |
+| Testing (FE) | Vitest + React Testing Library *(not yet set up — see §11)* |
 | Analytics DB | TimescaleDB (PostgreSQL extension) |
 | ML | scikit-learn, pandas, numpy (future) |
 
 **Do NOT introduce new technologies without explicit approval.**
+
+> **Stack note (2026-09-14).** The frontend was built with **Material UI**, not
+> the Tailwind CSS originally listed here. MUI is used across 21 components;
+> Tailwind survives in 2 files plus its config. This table now records the
+> decision that was actually made. Remaining work: either remove the unused
+> Tailwind/PostCSS config, or deliberately re-adopt it.
 
 ---
 
@@ -150,6 +156,13 @@ The following modules exist within the monolith. Each is independently bounded:
 | `notifications` | Email, SMS, Slack, in-app notifications |
 | `admin` | System configuration, audit logs |
 
+**Implementation status.** Seven modules are built out
+(`identity`, `activity`, `behavioral`, `anomaly`, `alerts`, `investigations`,
+`reporting`). The remaining seven (`users`, `assets`, `risk`, `ueba`,
+`response`, `notifications`, `admin`) are directory scaffolds with empty
+`__init__.py` files and no routers mounted. Treat the table above as the
+target architecture, not the current state.
+
 ---
 
 ## 7. Dataset Rules
@@ -192,4 +205,18 @@ The following modules exist within the monolith. Each is independently bounded:
 
 ---
 
-*Last updated: 2026-08-19*
+## 11. Known Deviations from These Rules
+
+Tracked honestly rather than quietly ignored:
+
+| Rule | Deviation | Status |
+|---|---|---|
+| §2 Frontend styling | MUI used instead of Tailwind | Rules updated to match reality; stale Tailwind config still to remove |
+| §2 Testing (FE) | No frontend tests exist; Vitest not installed | Open — backend/agent are covered, frontend is not |
+| §8 Coverage ≥80% per module | Not enforced in CI | Open |
+| §9 Git conventions | Work is committed directly to `master` | Open |
+| Data pipeline | Kafka, Elasticsearch, MinIO and TimescaleDB run in Docker but nothing connects to them | Open — infrastructure is provisioned ahead of use |
+
+---
+
+*Last updated: 2026-09-14*

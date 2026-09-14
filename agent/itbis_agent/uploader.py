@@ -27,7 +27,19 @@ class UploadError(Exception):
 
 
 class PermanentUploadError(Exception):
-    """A permanent upload failure (4xx other than 401/408/429)."""
+    """A permanent upload failure (4xx other than 401/403/408/429)."""
+
+
+class AuthUploadError(UploadError):
+    """
+    The server rejected our credential (401/403).
+
+    Deliberately a subclass of UploadError — i.e. *retryable*.  An expired or
+    revoked agent token says nothing about the validity of the queued events,
+    so they are retained and retried rather than discarded.  Treating this as
+    permanent silently destroyed every event collected after the credential
+    lapsed.
+    """
 
 
 class Uploader:
@@ -92,24 +104,73 @@ class Uploader:
 
         try:
             ack = self._send_once(queued)
+        except AuthUploadError as exc:
+            # Credential rejected.  Hold the events at the maximum backoff and
+            # do NOT consume the retry budget — this is fixed by rotating the
+            # token, not by giving up on the data.
+            delay = self.upload.max_backoff_seconds
+            self.queue.mark_failed(
+                [q.id for q in queued],
+                reason=str(exc),
+                delay_seconds=delay,
+                increment_attempts=False,
+            )
+            log.error(
+                "uploader.auth_rejected",
+                reason=str(exc),
+                delay=delay,
+                n=len(queued),
+                hint=(
+                    "The agent credential was rejected. Events are retained "
+                    "and will keep retrying — replace server.api_key with a "
+                    "valid agent token."
+                ),
+            )
+            return {"sent": 0, "duplicates": 0, "rejected": 0, "retries": 1}
         except PermanentUploadError as exc:
             self.queue.mark_dead([q.id for q in queued], str(exc))
             log.error("uploader.dead_batch", reason=str(exc), n=len(queued))
             return {"sent": 0, "duplicates": 0, "rejected": len(queued), "retries": 0}
         except UploadError as exc:
+            # Enforce max_retries per event.  A batch can mix events with
+            # different attempt counts, so only the individually-exhausted
+            # ones are dead-lettered; the rest keep their backoff.
+            exhausted = [
+                q.id for q in queued if q.attempts + 1 > self.upload.max_retries
+            ]
+            retryable = [
+                q.id for q in queued if q.attempts + 1 <= self.upload.max_retries
+            ]
+            if exhausted:
+                self.queue.mark_dead(
+                    exhausted, f"max retries ({self.upload.max_retries}) exceeded: {exc}"
+                )
+                log.error(
+                    "uploader.retries_exhausted",
+                    reason=str(exc),
+                    n=len(exhausted),
+                    max_retries=self.upload.max_retries,
+                )
             delay = self._compute_backoff(queued[0].attempts + 1)
-            self.queue.mark_failed(
-                [q.id for q in queued],
-                reason=str(exc),
-                delay_seconds=delay,
-            )
-            log.warning(
-                "uploader.retry",
-                reason=str(exc),
-                delay=delay,
-                attempts=queued[0].attempts + 1,
-            )
-            return {"sent": 0, "duplicates": 0, "rejected": 0, "retries": 1}
+            if retryable:
+                self.queue.mark_failed(
+                    retryable,
+                    reason=str(exc),
+                    delay_seconds=delay,
+                )
+                log.warning(
+                    "uploader.retry",
+                    reason=str(exc),
+                    delay=delay,
+                    attempts=queued[0].attempts + 1,
+                    n=len(retryable),
+                )
+            return {
+                "sent": 0,
+                "duplicates": 0,
+                "rejected": len(exhausted),
+                "retries": 1 if retryable else 0,
+            }
 
         # Success path
         self.queue.mark_sent([q.id for q in queued])
@@ -143,8 +204,9 @@ class Uploader:
             raise UploadError(f"transport: {exc}") from exc
 
         if resp.status_code in (401, 403):
-            # Auth issues are permanent until key changes
-            raise PermanentUploadError(
+            # Retryable: the operator can deploy a fresh credential and the
+            # queued events will drain on the next tick.
+            raise AuthUploadError(
                 f"auth rejected ({resp.status_code}): {resp.text[:200]}"
             )
         if resp.status_code in PERMANENT_HTTP_STATUS:
@@ -161,7 +223,7 @@ class Uploader:
 
         try:
             return BatchAck.model_validate(resp.json())
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             # Treat malformed ack as a transient — we don't know the result
             raise UploadError(f"unparseable ack: {exc}") from exc
 

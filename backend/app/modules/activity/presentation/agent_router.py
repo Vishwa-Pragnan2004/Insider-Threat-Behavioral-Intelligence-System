@@ -11,23 +11,27 @@ POST /api/v1/ingestion/events
 
 The existing file-upload endpoint from Phase 2 is unchanged.
 """
-# ruff: noqa: B008
 import uuid
 from datetime import UTC, datetime
 
 import structlog
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.database import get_db
 from app.modules.activity.infrastructure.mongo_event_store import MongoActivityEventStore
 from app.modules.activity.presentation.dependencies import (
     get_activity_event_store,
 )
-from app.modules.identity.domain.entities import User
-from app.modules.identity.domain.enums import PermissionName
-from app.modules.identity.presentation.dependencies import (
-    require_active_user,
-    require_permission,
+from app.modules.employees.application.directory_service import (
+    employee_resolver,
+    stamp_employee,
+)
+from app.modules.employees.infrastructure.repository import SQLEmployeeRepository
+from app.modules.identity.presentation.agent_dependencies import (
+    AgentPrincipal,
+    require_agent_ingest,
 )
 from app.shared.schemas.canonical_event import CanonicalEvent, EventType
 
@@ -69,17 +73,19 @@ class EventBatchAck(BaseModel):
     response_model=EventBatchAck,
     status_code=status.HTTP_200_OK,
     summary="Ingest a batch of CanonicalEvents from an endpoint agent",
-    dependencies=[Depends(require_permission(PermissionName.AGENT_INGEST))],
 )
 async def ingest_agent_events(
     payload: EventBatchIn,
     event_store: MongoActivityEventStore = Depends(get_activity_event_store),
-    current_user: User = Depends(require_active_user),
+    principal: AgentPrincipal = Depends(require_agent_ingest),
+    session: AsyncSession = Depends(get_db),
 ):
     """
     Accept a batch of agent events.
 
     Semantics:
+      - The caller is either an enrolled device presenting its own
+        revocable credential, or a user holding `agent:ingest`.
       - Each event is checked for duplicates by (source_dataset, raw_event_id)
         (a small dedup window kept in-process for now; sufficient for the
         Phase 3 scope — the queue is the agent's primary durability layer).
@@ -88,7 +94,22 @@ async def ingest_agent_events(
       - The response carries a per-event ack so the agent can identify
         duplicates and avoid pointless retries.
     """
+    # A device credential is scoped to its own device_id: holding one key
+    # must not let a host submit events attributed to a different machine.
+    if principal.kind == "device" and payload.agent_id != principal.identifier:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"Credential is enrolled for device {principal.identifier!r} "
+                f"but the batch claims agent_id {payload.agent_id!r}."
+            ),
+        )
+
     dedup = _DedupCache()
+    # Attribute events to employees via the directory (cached per account).
+    employees = await employee_resolver.resolve(
+        SQLEmployeeRepository(session), {ev.user_id for ev in payload.events if ev.user_id}
+    )
     accepted = duplicates = rejected = 0
     results: list[EventAck] = []
 
@@ -116,6 +137,7 @@ async def ingest_agent_events(
             doc = ev.model_dump(mode="json")
             doc["job_id"] = f"agent:{payload.agent_id}"
             doc["agent_id"] = payload.agent_id
+            stamp_employee(doc, employees)
             doc["ingested_at"] = (
                 payload.submitted_at or datetime.now(UTC)
             ).isoformat()
@@ -140,7 +162,8 @@ async def ingest_agent_events(
     log.info(
         "agent.batch_received",
         agent_id=payload.agent_id,
-        submitted_by=str(current_user.id),
+        submitted_by=principal.identifier,
+        submitted_by_kind=principal.kind,
         accepted=accepted,
         duplicates=duplicates,
         rejected=rejected,

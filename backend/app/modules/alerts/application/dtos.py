@@ -19,10 +19,19 @@ class AlertDeviationDTO(BaseModel):
 # ─── Alert entity responses ─────────────────────────────────
 
 
+class AlertFindingDTO(BaseModel):
+    category: str
+    title: str
+    severity: float
+    description: str
+    detector: str
+    day: datetime
+
+
 class AlertResponse(BaseModel):
     id: str
     idempotency_key: str
-    anomaly_result_id: str
+    anomaly_result_id: str | None = None
     user_id: str
     source_dataset: str
     window: str
@@ -41,6 +50,14 @@ class AlertResponse(BaseModel):
     top_behavioral_deviations: list[AlertDeviationDTO] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
+    acknowledged_at: datetime | None = None
+    resolved_at: datetime | None = None
+    source: str = "behavioral_model"
+    categories: list[str] = Field(default_factory=list)
+    findings: list[AlertFindingDTO] = Field(default_factory=list)
+    employee_risk_score: float | None = None
+    priority: float | None = None
+    risk_components: dict[str, float] = Field(default_factory=dict)
 
 
 class AlertListResponse(BaseModel):

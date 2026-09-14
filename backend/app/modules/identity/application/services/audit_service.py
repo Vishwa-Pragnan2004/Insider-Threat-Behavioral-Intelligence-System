@@ -37,7 +37,7 @@ class AuditService:
             "ip_address": event.ip_address,
             "success": event.success,
         }
-        
+
         if not event.success:
             log_kwargs["failure_reason"] = event.failure_reason
 

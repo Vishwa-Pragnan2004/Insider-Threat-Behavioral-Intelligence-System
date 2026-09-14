@@ -1,6 +1,5 @@
 import { Card, CardContent, Box, Typography } from '@mui/material';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import { TrendingUp, TrendingDown } from '@mui/icons-material';
 import type { ReactNode } from 'react';
 
 /**
@@ -16,7 +15,8 @@ import type { ReactNode } from 'react';
 interface StatCardProps {
   label: string;
   value: string;
-  trend: number;
+  /** Percentage change; omit to hide the trend indicator. */
+  trend?: number;
   trendUpIsGood?: boolean;
   icon: ReactNode;
   iconColor?: string;
@@ -30,7 +30,7 @@ export default function StatCard({
   icon,
   iconColor = 'rgba(59, 130, 246, 0.12)',
 }: StatCardProps) {
-  const isPositive = trend >= 0;
+  const isPositive = (trend ?? 0) >= 0;
   const isGood = trendUpIsGood ? isPositive : !isPositive;
 
   return (
@@ -61,27 +61,29 @@ export default function StatCard({
             {icon}
           </Box>
 
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.3,
-              px: 1,
-              py: 0.3,
-              borderRadius: 1,
-              bgcolor: isGood ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-              color: isGood ? 'success.main' : 'error.main',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-            }}
-          >
-            {isPositive ? (
-              <TrendingUpIcon sx={{ fontSize: 16 }} />
-            ) : (
-              <TrendingDownIcon sx={{ fontSize: 16 }} />
-            )}
-            {Math.abs(trend).toFixed(1)}%
-          </Box>
+          {trend !== undefined && (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.3,
+                px: 1,
+                py: 0.3,
+                borderRadius: 1,
+                bgcolor: isGood ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                color: isGood ? 'success.main' : 'error.main',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+              }}
+            >
+              {isPositive ? (
+                <TrendingUp sx={{ fontSize: 16 }} />
+              ) : (
+                <TrendingDown sx={{ fontSize: 16 }} />
+              )}
+              {Math.abs(trend).toFixed(1)}%
+            </Box>
+          )}
         </Box>
 
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5, color: 'text.primary' }}>

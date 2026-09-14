@@ -26,6 +26,17 @@ class EventType(str, Enum):
     LOGOFF = "logoff"
     LOGON_FAILED = "logon_failed"
 
+    # Remote access (Remote Desktop session reconnect / disconnect)
+    REMOTE_SESSION_CONNECT = "remote_session_connect"
+    REMOTE_SESSION_DISCONNECT = "remote_session_disconnect"
+
+    # Account & privilege management
+    PRIVILEGE_CHANGE = "privilege_change"
+    GROUP_CHANGE = "group_change"
+    ACCOUNT_CREATED = "account_created"
+    ACCOUNT_DISABLED = "account_disabled"
+    PASSWORD_CHANGE = "password_change"
+
     # Process / Application
     APP_LAUNCH = "app_launch"
     APP_CLOSE = "app_close"
@@ -41,6 +52,8 @@ class EventType(str, Enum):
     FILE_DELETE = "file_delete"
     FILE_COPY = "file_copy"
     FILE_MOVE = "file_move"
+    FILE_DOWNLOAD = "file_download"
+    DATA_TRANSFER = "data_transfer"
 
     # Network (basic shell for future expansion)
     HTTP_REQUEST = "http_request"

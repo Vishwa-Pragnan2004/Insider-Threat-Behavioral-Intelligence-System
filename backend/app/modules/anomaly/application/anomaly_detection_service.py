@@ -12,6 +12,7 @@ Top-level orchestrator that ties together:
 """
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 
 import structlog
@@ -21,7 +22,7 @@ from app.modules.anomaly.application.feature_prep import build_32_features
 from app.modules.anomaly.application.model_service import ModelService
 from app.modules.anomaly.application.risk_scoring import (
     classify_risk_level,
-    normalize_to_risk_score,
+    risk_score_from_decision,
 )
 from app.modules.anomaly.domain.entities import AnomalyResult, BehavioralDeviation
 from app.modules.anomaly.domain.enums import AnomalyPrediction
@@ -44,8 +45,6 @@ log = structlog.get_logger(__name__)
 # AlertGenerationService.  The type is intentionally a Protocol-free
 # Callable so the anomaly module does not import from the alerts
 # module (one-way dependency: alerts → anomaly, not the reverse).
-from typing import Awaitable, Callable, Optional
-
 AnomalyResultObserver = Callable[["AnomalyResult"], Awaitable[None]]
 
 
@@ -59,7 +58,7 @@ class AnomalyDetectionService:
         baseline_repo: IBehavioralBaselineRepository,
         result_store: IAnomalyResultStore,
         *,
-        alert_observer: Optional[AnomalyResultObserver] = None,
+        alert_observer: AnomalyResultObserver | None = None,
     ) -> None:
         self.model_service = model_service
         self.feature_store = feature_store
@@ -85,9 +84,7 @@ class AnomalyDetectionService:
         persist: bool = True,
     ) -> AnomalyResult:
         """Run anomaly detection for one (user, window_start) row."""
-        if self.model_service.get_artifact.__self__._artifact is None and False:
-            # (the above is dead code — we just want to lazy-load via access)
-            pass
+        # get_artifact() lazily loads and caches the model on first access.
         art = self.model_service.get_artifact()
         self.model_service.validate_against_phase4()
 
@@ -130,7 +127,7 @@ class AnomalyDetectionService:
         )
 
         # 5. Risk score + level.
-        risk_score = normalize_to_risk_score(
+        risk_score = risk_score_from_decision(
             raw_score, art.score_low, art.score_high
         )
         risk_level = classify_risk_level(risk_score)
@@ -184,8 +181,8 @@ class AnomalyDetectionService:
                 try:
                     await self.alert_observer(result)
                 except Exception:  # noqa: BLE001
-                    # The observer is contractually required to swallow
-            # its own errors, but we double-guard here so a buggy
+                    # The observer is contractually required to swallow its
+                    # own errors, but we double-guard here so a buggy
                     # observer never breaks the anomaly pipeline.
                     log.exception(
                         "anomaly.alert_observer_raised",
@@ -215,6 +212,10 @@ class AnomalyDetectionService:
         results: list[AnomalyResult] = []
         for r in rows:
             if r.window != window:
+                continue
+            if r.event_count == 0:
+                # Nothing happened, so there is nothing to judge. Empty days
+                # look nothing like the training data and scored as anomalies.
                 continue
             res = await self.detect_for_user_window(
                 user_id=user_id,

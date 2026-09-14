@@ -9,6 +9,7 @@
 import axios from 'axios';
 import type { LoginCredentials, TokenResponse, User } from '../types/auth';
 import { TOKEN_KEYS } from '../services/apiClient';
+import type { AccessRequestCreate, AccessRequestSubmitted } from '../types/users';
 
 // Direct axios instance for login (no token needed yet)
 const _noAuthClient = axios.create({
@@ -81,5 +82,16 @@ export interface UpdateUserRequest {
 export async function updateCurrentUser(data: UpdateUserRequest): Promise<User> {
   const { apiClient } = await import('../services/apiClient');
   const response = await apiClient.patch<User>('/auth/me', data);
+  return response.data;
+}
+
+/**
+ * POST /api/v1/auth/access-requests (public)
+ *
+ * Creates a locked account awaiting administrator approval.
+ * 409 on a duplicate username/email; 422 on a weak password or invalid input.
+ */
+export async function submitAccessRequest(body: AccessRequestCreate): Promise<AccessRequestSubmitted> {
+  const response = await _noAuthClient.post<AccessRequestSubmitted>('/auth/access-requests', body);
   return response.data;
 }

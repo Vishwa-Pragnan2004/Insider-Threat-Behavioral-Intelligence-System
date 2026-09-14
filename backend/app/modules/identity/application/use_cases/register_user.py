@@ -27,7 +27,7 @@ class RegisterUserUseCase:
 
     async def execute(self, dto: RegisterUserDTO) -> UserProfileDTO:
         """Execute the registration logic."""
-        
+
         # 1. Check uniqueness
         if await self.user_repo.exists_by_email(dto.email):
             raise UserAlreadyExistsError("Email is already registered")

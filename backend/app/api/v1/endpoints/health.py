@@ -9,7 +9,7 @@ GET /api/v1/health/info   — Application build/version information
 """
 
 import time
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, status
@@ -65,7 +65,7 @@ async def health_readiness() -> dict:
     Each check will be implemented when the corresponding infrastructure
     module is wired up (Phases 1+).
     """
-    checks: Dict[str, Any] = {
+    checks: dict[str, Any] = {
         "postgres": _stub_check("postgres"),
         "mongodb": _stub_check("mongodb"),
         "redis": _stub_check("redis"),
@@ -126,7 +126,7 @@ async def health_info() -> dict:
 
 
 # ─── Stub Helper ────────────────────────────────────────────
-def _stub_check(service: str) -> Dict[str, str]:
+def _stub_check(service: str) -> dict[str, str]:
     """
     Stub health check for a dependency.
 

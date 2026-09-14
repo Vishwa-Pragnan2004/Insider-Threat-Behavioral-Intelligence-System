@@ -11,10 +11,7 @@ import {
   MenuItem,
   Divider,
 } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
-import NotificationsIcon from '@mui/icons-material/Notifications';
-import LogoutIcon from '@mui/icons-material/Logout';
-import PersonIcon from '@mui/icons-material/Person';
+import { Menu as MenuIcon, Notifications, Logout, Person } from '@mui/icons-material';
 import { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -80,7 +77,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
         <Tooltip title="Notifications">
           <IconButton color="inherit" aria-label="notifications">
             <Badge badgeContent={3} color="error">
-              <NotificationsIcon />
+              <Notifications />
             </Badge>
           </IconButton>
         </Tooltip>
@@ -132,14 +129,14 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
           <Divider />
 
           <MenuItem onClick={handleMenuClose}>
-            <PersonIcon sx={{ mr: 1.5, fontSize: 20, color: 'text.secondary' }} />
+            <Person sx={{ mr: 1.5, fontSize: 20, color: 'text.secondary' }} />
             Profile
           </MenuItem>
 
           <Divider />
 
           <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
-            <LogoutIcon sx={{ mr: 1.5, fontSize: 20 }} />
+            <Logout sx={{ mr: 1.5, fontSize: 20 }} />
             Sign Out
           </MenuItem>
         </Menu>

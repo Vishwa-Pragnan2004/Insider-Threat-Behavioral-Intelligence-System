@@ -24,7 +24,23 @@ class AgentConfig(BaseModel):
     source_dataset: str = "win_endpoint"
     poll_interval_seconds: float = 2.0
     enabled_collectors: list[str] = Field(
-        default_factory=lambda: ["windows_security", "process", "usb"]
+        default_factory=lambda: [
+            "windows_security",
+            "process",
+            "usb",
+            "removable_files",
+            "downloads",
+            "network",
+        ]
+    )
+    include_system_activity: bool = Field(
+        default=False,
+        description=(
+            "Keep activity by Windows service, virtual and computer accounts "
+            "(SYSTEM, LOCAL SERVICE, NETWORK SERVICE, DWM-n, UMFD-n, HOST$) and "
+            "service/batch logons. Off by default: it is high-volume background "
+            "noise that swamps per-user behavioural baselines."
+        ),
     )
 
     @field_validator("poll_interval_seconds")

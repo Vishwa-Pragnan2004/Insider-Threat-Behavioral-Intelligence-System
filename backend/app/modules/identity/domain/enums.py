@@ -11,6 +11,8 @@ class RoleName(str, Enum):
 
     ADMIN = "ADMIN"
     SECURITY_ANALYST = "SECURITY_ANALYST"
+    SOC_ENGINEER = "SOC_ENGINEER"
+    SECURITY_MANAGER = "SECURITY_MANAGER"
     INVESTIGATOR = "INVESTIGATOR"
     VIEWER = "VIEWER"
 
@@ -47,6 +49,10 @@ class PermissionName(str, Enum):
 
     # Agent (Phase 3)
     AGENT_INGEST = "agent:ingest"
+    # Agent device enrollment — issuing/revoking per-device credentials is an
+    # administrative action, deliberately separate from agent:ingest (which is
+    # what a device's own key grants).
+    AGENTS_MANAGE = "agents:manage"
 
     # Behavioral features (Phase 4)
     BEHAVIORAL_READ = "behavioral:read"
@@ -55,6 +61,16 @@ class PermissionName(str, Enum):
     # Anomaly detection (Phase 5)
     ANOMALY_READ = "anomaly:read"
     ANOMALY_CREATE = "anomaly:create"
+
+    # Role dashboards: each workspace is granted by a permission, so an
+    # administrator can combine them (e.g. an analyst who also sees the SOC view).
+    DASHBOARD_ANALYST = "dashboard:analyst"
+    DASHBOARD_SOC = "dashboard:soc"
+    DASHBOARD_MANAGER = "dashboard:manager"
+
+    # Employee directory
+    EMPLOYEES_READ = "employees:read"
+    EMPLOYEES_MANAGE = "employees:manage"
 
 
 # ─── Role → Permission Map ───────────────────────────────────
@@ -77,9 +93,48 @@ ROLE_PERMISSIONS: dict[RoleName, list[PermissionName]] = {
         PermissionName.BEHAVIORAL_CREATE,
         PermissionName.ANOMALY_READ,
         PermissionName.ANOMALY_CREATE,
+        PermissionName.DASHBOARD_ANALYST,
+        PermissionName.EMPLOYEES_READ,
+    ],
+
+    # Runs the monitoring pipeline: events, detections, sensors and triage.
+    RoleName.SOC_ENGINEER: [
+        PermissionName.USERS_READ,
+        PermissionName.ALERTS_READ,
+        PermissionName.ALERTS_CREATE,
+        PermissionName.ALERTS_UPDATE,
+        PermissionName.INVESTIGATIONS_READ,
+        PermissionName.INVESTIGATIONS_CREATE,
+        PermissionName.INVESTIGATIONS_UPDATE,
+        PermissionName.REPORTS_READ,
+        PermissionName.ADMIN_READ,
+        PermissionName.AGENT_INGEST,
+        PermissionName.AGENTS_MANAGE,
+        PermissionName.BEHAVIORAL_READ,
+        PermissionName.BEHAVIORAL_CREATE,
+        PermissionName.ANOMALY_READ,
+        PermissionName.ANOMALY_CREATE,
+        PermissionName.DASHBOARD_SOC,
+        PermissionName.EMPLOYEES_READ,
+        PermissionName.EMPLOYEES_MANAGE,
+    ],
+
+    # Oversees insider risk: read access everywhere, owns reporting.
+    RoleName.SECURITY_MANAGER: [
+        PermissionName.USERS_READ,
+        PermissionName.ALERTS_READ,
+        PermissionName.INVESTIGATIONS_READ,
+        PermissionName.REPORTS_READ,
+        PermissionName.REPORTS_CREATE,
+        PermissionName.ADMIN_READ,
+        PermissionName.BEHAVIORAL_READ,
+        PermissionName.ANOMALY_READ,
+        PermissionName.DASHBOARD_MANAGER,
+        PermissionName.EMPLOYEES_READ,
     ],
 
     RoleName.INVESTIGATOR: [
+        PermissionName.EMPLOYEES_READ,
         PermissionName.USERS_READ,
         PermissionName.ALERTS_READ,
         PermissionName.INVESTIGATIONS_READ,

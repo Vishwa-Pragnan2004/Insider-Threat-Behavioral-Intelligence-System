@@ -29,6 +29,7 @@ from app.modules.activity.domain.repositories import (
     IIngestionErrorRepository,
     IIngestionJobRepository,
 )
+from app.modules.employees.application.directory_service import stamp_employee
 from app.shared.schemas.canonical_event import CanonicalEvent
 
 logger = structlog.get_logger(__name__)
@@ -51,7 +52,9 @@ class IngestionService:
         error_repo: IIngestionErrorRepository,
         event_store: IActivityEventStore,
         chunk_size: int = 500,
+        employee_lookup=None,  # async (accounts) -> {account: EmployeeRef}
     ) -> None:
+        self.employee_lookup = employee_lookup
         self.job_repo = job_repo
         self.error_repo = error_repo
         self.event_store = event_store
@@ -153,6 +156,10 @@ class IngestionService:
             # Persist events
             if chunk.events:
                 serialized = [self._serialise_event(e, job_id_str) for e in chunk.events]
+                if self.employee_lookup is not None:
+                    refs = await self.employee_lookup({d["user_id"] for d in serialized})
+                    for doc in serialized:
+                        stamp_employee(doc, refs)
                 inserted = await self.event_store.insert_many(serialized, job_id=job_id_str)
                 total_events += inserted
                 job.increment_stored(inserted)

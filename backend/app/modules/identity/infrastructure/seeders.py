@@ -13,8 +13,6 @@ from app.modules.identity.domain.entities import Permission, Role, User
 from app.modules.identity.domain.enums import ROLE_PERMISSIONS, PermissionName, RoleName
 from app.modules.identity.infrastructure.models import (
     PermissionModel,
-    RoleModel,
-    UserModel,
 )
 from app.modules.identity.infrastructure.repositories import (
     SQLRoleRepository,
@@ -52,12 +50,12 @@ async def seed_identity_module(session: AsyncSession) -> None:
     role_repo = SQLRoleRepository(session)
     for role_name, required_perms in ROLE_PERMISSIONS.items():
         role = await role_repo.get_by_name(role_name)
-        
+
         # Build pure domain permissions list
         domain_perms = [
             Permission(id=perm_models[p].id, name=p) for p in required_perms
         ]
-        
+
         if not role:
             # Create new role
             import uuid
@@ -71,10 +69,10 @@ async def seed_identity_module(session: AsyncSession) -> None:
     # 3. Seed Superadmin
     settings = get_settings()
     user_repo = SQLUserRepository(session)
-    
+
     superadmin_email = settings.FIRST_SUPERADMIN_EMAIL
     existing_admin = await user_repo.get_by_email(superadmin_email)
-    
+
     if not existing_admin:
         import uuid
         admin_role = await role_repo.get_by_name(RoleName.ADMIN)

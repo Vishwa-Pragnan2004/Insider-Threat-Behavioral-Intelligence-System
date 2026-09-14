@@ -4,7 +4,6 @@ Implements domain repository interfaces using SQLAlchemy.
 """
 
 import uuid
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,7 +50,7 @@ class SQLUserRepository(IUserRepository):
             roles=roles,
         )
 
-    def _to_model(self, entity: User, existing_model: Optional[UserModel] = None) -> UserModel:
+    def _to_model(self, entity: User, existing_model: UserModel | None = None) -> UserModel:
         """Convert domain entity to SQLAlchemy model."""
         model = existing_model or UserModel(id=entity.id)
         model.username = entity.username
@@ -66,19 +65,19 @@ class SQLUserRepository(IUserRepository):
         model.last_login_at = entity.last_login_at
         return model
 
-    async def get_by_id(self, user_id: uuid.UUID) -> Optional[User]:
+    async def get_by_id(self, user_id: uuid.UUID) -> User | None:
         stmt = select(UserModel).where(UserModel.id == user_id)
         result = await self.session.execute(stmt)
         model = result.scalars().first()
         return self._to_domain(model) if model else None
 
-    async def get_by_email(self, email: str) -> Optional[User]:
+    async def get_by_email(self, email: str) -> User | None:
         stmt = select(UserModel).where(UserModel.email == email.strip().lower())
         result = await self.session.execute(stmt)
         model = result.scalars().first()
         return self._to_domain(model) if model else None
 
-    async def get_by_username(self, username: str) -> Optional[User]:
+    async def get_by_username(self, username: str) -> User | None:
         stmt = select(UserModel).where(UserModel.username == username.strip().lower())
         result = await self.session.execute(stmt)
         model = result.scalars().first()
@@ -91,7 +90,7 @@ class SQLUserRepository(IUserRepository):
         existing = result.scalars().first()
 
         model = self._to_model(user, existing)
-        
+
         # Handle role assignments
         if user.roles:
             role_ids = [r.id for r in user.roles]
@@ -125,7 +124,7 @@ class SQLUserRepository(IUserRepository):
         role_stmt = select(RoleModel).where(RoleModel.name == role_name)
         role_result = await self.session.execute(role_stmt)
         role_model = role_result.scalars().first()
-        
+
         if role_model and role_model not in user_model.roles:
             user_model.roles.append(role_model)
             await self.session.flush()
@@ -141,7 +140,7 @@ class SQLRoleRepository(IRoleRepository):
         permissions = [Permission(id=p.id, name=p.name) for p in model.permissions]
         return Role(id=model.id, name=model.name, permissions=permissions)
 
-    async def get_by_name(self, name: RoleName) -> Optional[Role]:
+    async def get_by_name(self, name: RoleName) -> Role | None:
         stmt = select(RoleModel).where(RoleModel.name == name)
         result = await self.session.execute(stmt)
         model = result.scalars().first()
@@ -159,7 +158,7 @@ class SQLRoleRepository(IRoleRepository):
         existing = result.scalars().first()
 
         model = existing or RoleModel(id=role.id, name=role.name)
-        
+
         if role.permissions:
             perm_ids = [p.id for p in role.permissions]
             perm_stmt = select(PermissionModel).where(PermissionModel.id.in_(perm_ids))

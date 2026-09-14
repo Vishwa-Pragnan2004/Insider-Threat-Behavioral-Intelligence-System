@@ -53,6 +53,16 @@ class FakeFeatureStore(IBehavioralFeatureStore):
             and (source_dataset is None or d.source_dataset == source_dataset)
         ]
 
+    async def list_all_features(self, source_dataset=None, window=None):
+        return sorted(
+            [
+                d for d in self.docs
+                if (source_dataset is None or d.source_dataset == source_dataset)
+                and (window is None or d.window == window)
+            ],
+            key=lambda d: d.window_start,
+        )
+
 
 class FakeBaselineRepo(IBehavioralBaselineRepository):
     def __init__(self) -> None:
@@ -187,6 +197,21 @@ async def test_generate_features_handles_multiple_users(service):
     assert users == {"alice", "bob"}
     # 3 days × 2 users = 6 rows
     assert len(rows) == 6
+
+
+@pytest.mark.asyncio
+async def test_unresolved_owner_gets_no_behavioural_profile(service):
+    """Events the agent couldn't attribute are stored as `unknown` — not a person."""
+    start = datetime(2026, 8, 1, tzinfo=UTC)
+    end = datetime(2026, 8, 2, tzinfo=UTC)
+    for user in ("alice", "unknown"):
+        service.event_source.add(
+            _ev(event_type="app_launch", ts=start + timedelta(hours=10), user_id=user)
+        )
+
+    rows = await service.generate_features(start=start, end=end, source_dataset="cert")
+
+    assert {r.user_id for r in rows} == {"alice"}
 
 
 @pytest.mark.asyncio

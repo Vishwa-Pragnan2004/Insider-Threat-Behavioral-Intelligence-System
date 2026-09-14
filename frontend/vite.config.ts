@@ -9,6 +9,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    include: [
+      '@mui/material',
+      '@mui/icons-material',
+      '@emotion/react',
+      '@emotion/styled',
+    ],
+  },
+  build: {
+    target: 'esnext',
+  },
   server: {
     port: 5173,
     proxy: {

@@ -15,6 +15,8 @@ The policy also controls:
     - the minimum risk score required to generate an alert
     - whether to generate an alert when the anomaly prediction is
       `normal` (default: no — only act on `anomaly`)
+    - a learning period: whether a user must have a personal baseline
+      before their anomalies raise alerts
 """
 from __future__ import annotations
 
@@ -41,8 +43,17 @@ class AlertPolicy:
     # to 0 (no additional threshold).
     minimum_risk_score: float = 0.0
 
+    # Learning period. Until a user has enough history for a personal
+    # baseline they are compared with the training population's average
+    # employee, which says little about whether *their* behaviour changed.
+    # Results are still stored; only alerting waits.
+    require_personal_baseline: bool = False
+
     def should_alert(self, *, risk_level: RiskLevel, risk_score: float,
-                     prediction: AnomalyPrediction) -> bool:
+                     prediction: AnomalyPrediction,
+                     baseline_source: str | None = None) -> bool:
+        if self.require_personal_baseline and baseline_source != "personal":
+            return False
         if self.require_anomaly_prediction and prediction != AnomalyPrediction.ANOMALY:
             return False
         if risk_score < self.minimum_risk_score:
@@ -78,4 +89,5 @@ DEFAULT_POLICY = AlertPolicy(
     minimum_risk_level=RiskLevel.HIGH,
     require_anomaly_prediction=True,
     minimum_risk_score=0.0,
+    require_personal_baseline=True,
 )

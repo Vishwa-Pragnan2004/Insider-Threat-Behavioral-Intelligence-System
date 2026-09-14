@@ -3,7 +3,6 @@ ITBIS — Activity Module: SQLAlchemy ORM Models
 """
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import (
     JSON,
@@ -43,17 +42,17 @@ class IngestionJobModel(Base):
     failed_rows: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     events_stored: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    started_at: Mapped[Optional[datetime]] = mapped_column(
+    started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    completed_at: Mapped[Optional[datetime]] = mapped_column(
+    completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    initiated_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    initiated_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     errors: Mapped[list["IngestionErrorModel"]] = relationship(
         back_populates="job",
@@ -76,7 +75,7 @@ class IngestionErrorModel(Base):
     )
     row_number: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
-    raw_data: Mapped[Optional[dict]] = mapped_column(
+    raw_data: Mapped[dict | None] = mapped_column(
         JSON().with_variant(JSONB(), "postgresql"),
         nullable=True,
     )

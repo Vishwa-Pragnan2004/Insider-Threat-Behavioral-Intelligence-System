@@ -25,6 +25,7 @@ Operations
     mark_sent(ids)     -> None
     mark_failed(ids, reason, delay_seconds) -> None
     mark_dead(ids, reason) -> None
+    revive_dead()     -> int     (dead -> pending, for operator recovery)
     count_pending()    -> int
     pending_size_bytes -> int     (approximate)
 """
@@ -182,15 +183,25 @@ class PersistentQueue:
         ids: list[int],
         reason: str,
         delay_seconds: float,
+        increment_attempts: bool = True,
     ) -> None:
+        """
+        Schedule `ids` for a later retry.  Rows stay `pending`.
+
+        `increment_attempts=False` applies the backoff without consuming the
+        retry budget.  This is used for credential rejections, which are an
+        operator problem rather than a property of the events — burning
+        retries on them would eventually dead-letter perfectly valid data.
+        """
         if not ids:
             return
         next_at = (_now() + timedelta(seconds=delay_seconds)).isoformat()
+        attempts_expr = "attempts + 1" if increment_attempts else "attempts"
         with self._tx() as conn:
             for row_id in ids:
                 conn.execute(
                     "UPDATE events "
-                    "SET attempts = attempts + 1, "
+                    f"SET attempts = {attempts_expr}, "
                     "    last_error = ?, "
                     "    next_attempt_at = ? "
                     "WHERE id = ?",
@@ -207,6 +218,22 @@ class PersistentQueue:
                 f"WHERE id IN ({qmarks})",
                 [reason, *ids],
             )
+
+    def revive_dead(self) -> int:
+        """
+        Return every dead-lettered event to the pending queue.
+
+        Dead-lettering used to be a one-way door, which meant an operator had
+        no way to recover events discarded during an outage or a credential
+        lapse.  Returns the number of rows revived.
+        """
+        with self._tx() as conn:
+            cur = conn.execute(
+                "UPDATE events "
+                "SET status = 'pending', attempts = 0, next_attempt_at = NULL "
+                "WHERE status = 'dead'"
+            )
+            return int(cur.rowcount or 0)
 
     # ─── Stats ──────────────────────────────────────────────
 
@@ -239,7 +266,7 @@ class PersistentQueue:
 class QueuedEvent:
     """Lightweight view of a row read by the uploader."""
 
-    __slots__ = ("id", "idem_key", "agent_id", "event", "attempts")
+    __slots__ = ("agent_id", "attempts", "event", "id", "idem_key")
 
     def __init__(
         self,

@@ -66,5 +66,21 @@ class Collector(ABC):
 
         time.sleep(seconds if seconds is not None else self.poll_interval_seconds)
 
+    def _wait(self, seconds: float) -> None:
+        """
+        Sleep for up to `seconds`, returning early once the collector is stopped.
+
+        Collectors with long scan intervals use this rather than `_sleep`, so
+        stopping the agent doesn't have to wait out a whole interval.
+        """
+        import time
+
+        deadline = time.monotonic() + seconds
+        while self._running:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return
+            time.sleep(min(0.25, remaining))
+
     def __repr__(self) -> str:  # pragma: no cover - trivial
         return f"<Collector {self.name}>"

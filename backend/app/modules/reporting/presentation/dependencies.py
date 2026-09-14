@@ -1,12 +1,9 @@
 """
 ITBIS — Reporting Module: Presentation Dependencies
 """
-from functools import wraps
 
 from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
 from app.modules.alerts.application.alert_service import AlertService
 from app.modules.alerts.presentation.dependencies import get_alert_service
 from app.modules.investigations.application.investigation_service import InvestigationService

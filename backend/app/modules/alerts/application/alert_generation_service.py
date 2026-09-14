@@ -22,18 +22,11 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Awaitable, Callable
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 import structlog
 
 from app.modules.alerts.application.dtos import AlertGenerateResponse
-
-
-def _make_aware(dt: datetime) -> datetime:
-    """Ensure a datetime is timezone-aware (assumes UTC if naive)."""
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=UTC)
-    return dt
 from app.modules.alerts.application.policy import DEFAULT_POLICY, AlertPolicy
 from app.modules.alerts.domain.entities import Alert, AlertDeviation
 from app.modules.alerts.domain.enums import AlertSeverity, AlertStatus
@@ -43,6 +36,13 @@ from app.modules.anomaly.domain.enums import AnomalyPrediction, RiskLevel
 from app.modules.anomaly.domain.repositories import IAnomalyResultStore
 
 log = structlog.get_logger(__name__)
+
+
+def _make_aware(dt: datetime) -> datetime:
+    """Ensure a datetime is timezone-aware (assumes UTC if naive)."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt
 
 
 # ─── Idempotency key ──────────────────────────────────────
@@ -128,6 +128,7 @@ class AlertGenerationService:
             risk_level=risk_level,
             risk_score=float(anomaly.risk_score),
             prediction=anomaly.prediction,
+            baseline_source=anomaly.baseline_source,
         ):
             log.info(
                 "alerts.skipped_below_threshold",
@@ -198,6 +199,7 @@ class AlertGenerationService:
                 risk_level=risk_level,
                 risk_score=float(an.risk_score),
                 prediction=an.prediction,
+                baseline_source=an.baseline_source,
             ):
                 skipped_below += 1
                 continue

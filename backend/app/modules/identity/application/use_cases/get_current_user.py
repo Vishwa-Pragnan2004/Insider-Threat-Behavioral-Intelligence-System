@@ -18,8 +18,8 @@ class GetCurrentUserUseCase:
     async def execute(self, user_id_str: str) -> UserProfileDTO:
         try:
             user_id = uuid.UUID(user_id_str)
-        except ValueError:
-            raise TokenInvalidError("Invalid user ID format in token")
+        except ValueError as exc:
+            raise TokenInvalidError("Invalid user ID format in token") from exc
 
         user = await self.user_repo.get_by_id(user_id)
         if not user:

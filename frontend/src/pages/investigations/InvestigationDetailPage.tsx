@@ -23,9 +23,7 @@ import {
   Card,
   CardContent,
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import SendIcon from '@mui/icons-material/Send';
-import AddLinkIcon from '@mui/icons-material/AddLink';
+import { ArrowBack, Send, AddLink } from '@mui/icons-material';
 import PageHeader from '../../components/common/PageHeader';
 import SeverityBadge from '../../components/common/SeverityBadge';
 import EmptyState from '../../components/common/EmptyState';
@@ -122,7 +120,7 @@ export default function InvestigationDetailPage() {
   return (
     <Box>
       <Box sx={{ mb: 2 }}>
-        <Button startIcon={<ArrowBackIcon />} variant="text" size="small" onClick={() => navigate('/investigations')}>
+        <Button startIcon={<ArrowBack />} variant="text" size="small" onClick={() => navigate('/investigations')}>
           Back to Investigations
         </Button>
       </Box>
@@ -138,7 +136,7 @@ export default function InvestigationDetailPage() {
             <Button variant="outlined" size="small" color="warning" onClick={() => { setNewStatus(''); setResolution(''); setStatusDialogOpen(true); }}>
               Change Status
             </Button>
-            <Button variant="contained" size="small" startIcon={<AddLinkIcon />} onClick={() => setLinkDialogOpen(true)}>
+            <Button variant="contained" size="small"               startIcon={<AddLink />} onClick={() => setLinkDialogOpen(true)}>
               Link Alert
             </Button>
           </Stack>
@@ -246,7 +244,7 @@ export default function InvestigationDetailPage() {
               <Button
                 size="small"
                 variant="contained"
-                endIcon={<SendIcon />}
+                endIcon={<Send />}
                 disabled={!noteContent.trim() || noteMutation.isPending}
                 onClick={() => noteMutation.mutate(noteContent.trim())}
               >

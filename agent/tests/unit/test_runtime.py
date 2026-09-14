@@ -75,17 +75,27 @@ def test_runtime_orchestration_collects_and_uploads(base_config):
         t = threading.Thread(target=runtime.start, daemon=True)
         t.start()
 
+        # Collection and upload run concurrently, so the uploader may flush a
+        # partial batch before all three events have been enqueued.  Wait for
+        # the total to arrive rather than assuming the first batch holds all
+        # of them — asserting on received_batches[0] made this test flaky.
+        def _total_events() -> int:
+            return sum(len(b["events"]) for b in received_batches)
+
         deadline = time.monotonic() + 5.0
-        while time.monotonic() < deadline and not received_batches:
+        while time.monotonic() < deadline and _total_events() < 3:
             time.sleep(0.05)
         runtime.stop()
         t.join(timeout=5)
 
     assert received_batches, "no batches were uploaded"
-    body = received_batches[0]
-    assert body["agent_id"] == "TEST-DEVICE-001"
-    assert len(body["events"]) == 3
-    assert all(e["event_type"] == EventType.LOGON for e in body["events"])
+    assert all(b["agent_id"] == "TEST-DEVICE-001" for b in received_batches)
+
+    uploaded = [e for b in received_batches for e in b["events"]]
+    assert len(uploaded) == 3, f"expected 3 events, got {len(uploaded)}"
+    assert all(e["event_type"] == EventType.LOGON for e in uploaded)
+    # The queue dedupes by idempotency key, so each event arrives exactly once.
+    assert len({e["raw_event_id"] for e in uploaded}) == 3
 
 
 def test_runtime_skips_unknown_collector(base_config):

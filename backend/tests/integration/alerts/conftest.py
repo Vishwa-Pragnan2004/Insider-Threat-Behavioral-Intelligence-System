@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import uuid
 from collections.abc import AsyncGenerator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest_asyncio
@@ -260,3 +260,32 @@ def anomaly_doc(
         "model_input": {},
         "created_at": datetime.now(UTC),
     }
+
+
+async def seed_personal_baseline(db: AsyncSession, user_id: str) -> None:
+    """
+    Give `user_id` a quiet personal baseline, so detection compares them with
+    their own history and the learning period no longer holds back alerts.
+    """
+    from app.modules.behavioral.domain.entities import BehavioralBaseline
+    from app.modules.behavioral.domain.enums import FEATURE_NAMES, FEATURE_VERSION
+    from app.modules.behavioral.infrastructure.repositories import (
+        SQLBehavioralBaselineRepository,
+    )
+
+    end = datetime(2026, 8, 1, tzinfo=UTC)
+    await SQLBehavioralBaselineRepository(db).save(
+        BehavioralBaseline(
+            user_id=user_id,
+            feature_version=FEATURE_VERSION,
+            stats={
+                name: {"mean": 1.0, "std": 1.0, "min": 0.0, "max": 3.0, "count": 28}
+                for name in FEATURE_NAMES
+            },
+            window_start=end - timedelta(days=28),
+            window_end=end,
+            observation_days=20,
+        )
+    )
+    await db.commit()
+

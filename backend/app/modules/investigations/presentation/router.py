@@ -19,7 +19,6 @@ Permission map (re-uses Phase 1 RBAC):
   investigations:update   -> POST   /{id}/assign, /{id}/status
                              DELETE /{id}/alerts/{alert_id}
 """
-# ruff: noqa: B008
 import uuid
 
 import structlog

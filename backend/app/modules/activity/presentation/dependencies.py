@@ -15,6 +15,8 @@ from app.modules.activity.infrastructure.repositories import (
     SQLIngestionErrorRepository,
     SQLIngestionJobRepository,
 )
+from app.modules.employees.application.directory_service import employee_resolver
+from app.modules.employees.infrastructure.repository import SQLEmployeeRepository
 
 
 def get_activity_event_store(
@@ -31,8 +33,14 @@ def get_ingestion_service(
     """Provide an IngestionService wired with Postgres + Mongo repos."""
     job_repo = SQLIngestionJobRepository(session)
     error_repo = SQLIngestionErrorRepository(session)
+    employees = SQLEmployeeRepository(session)
+
+    async def lookup(accounts):  # noqa: ANN001, ANN202
+        return await employee_resolver.resolve(employees, accounts)
+
     return IngestionService(
         job_repo=job_repo,
         error_repo=error_repo,
         event_store=event_store,
+        employee_lookup=lookup,
     )

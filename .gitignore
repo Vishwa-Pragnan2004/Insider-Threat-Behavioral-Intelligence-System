@@ -122,3 +122,13 @@ minio_data/
 # ─── Test artifacts ──────────────────────────────────────────
 test-results/
 junit*.xml
+
+# CERT replay / evaluation outputs (large, regenerable)
+data/evaluation/
+
+# Local agent configuration (holds a live device enrollment key)
+agent/config.yaml
+
+# CERT Insider Threat dataset (licensed, ~17 GB) — obtain from CMU KiltHub
+archive/
+archive.zip

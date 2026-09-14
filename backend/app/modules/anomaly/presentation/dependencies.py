@@ -1,7 +1,6 @@
 """
 ITBIS — Anomaly Module: FastAPI Dependencies
 """
-# ruff: noqa: B008
 import os
 from collections.abc import Awaitable, Callable
 from typing import Any

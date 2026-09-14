@@ -11,56 +11,52 @@ from app.modules.anomaly.application.explainability import (
 )
 from app.modules.anomaly.application.risk_scoring import (
     classify_risk_level,
-    normalize_to_risk_score,
+    risk_score_from_decision,
 )
 from app.modules.anomaly.domain.entities import BehavioralDeviation
 from app.modules.anomaly.domain.enums import RiskLevel
 
-# ─── normalize_to_risk_score ──────────────────────────────
+# ─── risk_score_from_decision ─────────────────────────────
+
+LOW, HIGH = -0.04, 0.25  # calibration percentiles in decision_function space
 
 
-def test_normalize_zero_when_score_equals_high():
-    # score == score_high → 0 (most normal)
-    assert normalize_to_risk_score(0.25, score_low=-0.04, score_high=0.25) == 0.0
+def test_decision_at_or_above_high_is_zero_risk():
+    assert risk_score_from_decision(HIGH, LOW, HIGH) == 0.0
+    assert risk_score_from_decision(1.0, LOW, HIGH) == 0.0
 
 
-def test_normalize_100_when_score_equals_low():
-    # score == score_low → 100 (most anomalous)
-    assert normalize_to_risk_score(-0.04, score_low=-0.04, score_high=0.25) == 100.0
+def test_decision_at_or_below_low_is_full_risk():
+    assert risk_score_from_decision(LOW, LOW, HIGH) == 100.0
+    assert risk_score_from_decision(-1.0, LOW, HIGH) == 100.0
 
 
-def test_normalize_midpoint_is_50():
-    # score exactly halfway → 50
-    midpoint = (-0.04 + 0.25) / 2
-    assert (
-        normalize_to_risk_score(midpoint, score_low=-0.04, score_high=0.25)
-        == pytest.approx(50.0)
-    )
+def test_boundary_separates_low_from_medium():
+    # Just inside normal stays LOW; just past the boundary is MEDIUM.
+    assert classify_risk_level(risk_score_from_decision(0.0, LOW, HIGH)) == RiskLevel.LOW
+    assert risk_score_from_decision(0.0, LOW, HIGH) == pytest.approx(39.99)
+    assert classify_risk_level(risk_score_from_decision(-1e-6, LOW, HIGH)) == RiskLevel.MEDIUM
 
 
-def test_normalize_clamps_above_high():
-    # Score more positive than score_high → clamped to 0
-    assert normalize_to_risk_score(1.0, score_low=-0.04, score_high=0.25) == 0.0
+def test_halfway_to_low_is_high_risk():
+    assert risk_score_from_decision(LOW / 2, LOW, HIGH) == pytest.approx(70.0)
 
 
-def test_normalize_clamps_below_low():
-    # Score more negative than score_low → clamped to 100
-    assert normalize_to_risk_score(-1.0, score_low=-0.04, score_high=0.25) == 100.0
+def test_average_day_is_not_risky():
+    """Regression: the old mapping scored every result, however ordinary, as 100."""
+    assert classify_risk_level(risk_score_from_decision(0.064, LOW, HIGH)) == RiskLevel.LOW
 
 
-def test_normalize_handles_zero_range():
-    # score_low == score_high → no signal → 0
-    assert normalize_to_risk_score(0.0, score_low=0.5, score_high=0.5) == 0.0
+def test_degenerate_bounds_stay_monotonic():
+    scores = [risk_score_from_decision(d, 0.5, 0.5) for d in (0.6, 0.1, -0.1, -0.6)]
+    assert scores == sorted(scores)
+    assert scores[0] == 0.0 and scores[-1] == 100.0
 
 
-def test_normalize_monotonic_with_anomaly():
-    # More negative score → higher risk
-    s_low, s_high = -0.04, 0.25
-    r0 = normalize_to_risk_score(0.20, s_low, s_high)
-    r1 = normalize_to_risk_score(0.10, s_low, s_high)
-    r2 = normalize_to_risk_score(0.00, s_low, s_high)
-    r3 = normalize_to_risk_score(-0.10, s_low, s_high)
-    assert r0 < r1 < r2 < r3
+def test_risk_rises_as_decision_falls():
+    decisions = [0.30, 0.20, 0.10, 0.00, -0.01, -0.03, -0.10]
+    scores = [risk_score_from_decision(d, LOW, HIGH) for d in decisions]
+    assert scores == sorted(scores)
 
 
 # ─── classify_risk_level ──────────────────────────────────

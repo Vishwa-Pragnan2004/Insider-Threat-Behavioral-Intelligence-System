@@ -4,11 +4,9 @@ Shared by all ORM models across every module.
 Import this Base — never create a second one.
 """
 
-from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import DateTime, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):

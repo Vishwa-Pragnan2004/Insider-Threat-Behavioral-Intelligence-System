@@ -15,7 +15,6 @@ Permission map (re-uses Phase 1 RBAC):
   alerts:create   -> POST /generate
   alerts:update   -> POST /{id}/{acknowledge|assign|status}
 """
-# ruff: noqa: B008
 import uuid
 
 import structlog
@@ -28,6 +27,7 @@ from app.modules.alerts.application.alert_service import AlertService
 from app.modules.alerts.application.dtos import (
     AlertAssignRequest,
     AlertDeviationDTO,
+    AlertFindingDTO,
     AlertGenerateRequest,
     AlertGenerateResponse,
     AlertListResponse,
@@ -64,7 +64,7 @@ def _to_response(a: Alert) -> AlertResponse:
     return AlertResponse(
         id=str(a.id),
         idempotency_key=a.idempotency_key,
-        anomaly_result_id=str(a.anomaly_result_id),
+        anomaly_result_id=str(a.anomaly_result_id) if a.anomaly_result_id else None,
         user_id=a.user_id,
         source_dataset=a.source_dataset,
         window=a.window,
@@ -92,6 +92,24 @@ def _to_response(a: Alert) -> AlertResponse:
         ],
         created_at=a.created_at,
         updated_at=a.updated_at,
+        acknowledged_at=a.acknowledged_at,
+        resolved_at=a.resolved_at,
+        source=a.source,
+        categories=list(a.categories),
+        findings=[
+            AlertFindingDTO(
+                category=f.category,
+                title=f.title,
+                severity=f.severity,
+                description=f.description,
+                detector=f.detector,
+                day=f.day,
+            )
+            for f in a.findings
+        ],
+        employee_risk_score=a.employee_risk_score,
+        priority=a.priority,
+        risk_components=dict(a.risk_components),
     )
 
 

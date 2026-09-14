@@ -1,54 +1,52 @@
 """
 ITBIS — Anomaly Module: Risk Scoring
 
-Maps the Isolation Forest's raw score to a 0-100 risk score and a
-risk level (LOW / MEDIUM / HIGH / CRITICAL).
+Maps the Isolation Forest's decision score to a 0-100 risk score and a risk
+level (LOW / MEDIUM / HIGH / CRITICAL).
 
-The artifact's `score_low` and `score_high` are the fitted bounds of
-the score distribution seen during training:
+The decision score (`IsolationForest.decision_function`) is anchored on the
+model's own boundary: >= 0 is normal, < 0 is anomalous. The artifact's
+`score_low` / `score_high` are the 5th / 95th percentiles of that score on the
+calibration data, so:
 
-  - `score_high`  =  most *normal* score (least anomalous)
-  - `score_low`   =  most *anomalous* score (most anomalous)
+    normal   (decision >= 0): risk falls from just under 40 to 0 as the
+                              decision rises to score_high
+    anomaly  (decision <  0): risk rises from 40 to 100 as the decision falls
+                              to score_low (and stays at 100 beyond it)
 
-Lower (more negative) raw scores = more anomalous.  The risk score
-is therefore:
-
-    risk_score = 100 * (score_high - raw) / (score_high - score_low)
-                 clamped to [0, 100]
+A normal prediction is therefore always LOW, and an anomaly is MEDIUM or above,
+spread by how far past the boundary it falls.
 
 Classification:
-
-    LOW:      0  - 39
-    MEDIUM:  40  - 59
-    HIGH:    60  - 79
-    CRITICAL: 80 -100
+    LOW:       0 - 39
+    MEDIUM:   40 - 59
+    HIGH:     60 - 79
+    CRITICAL: 80 - 100
 """
 from __future__ import annotations
 
 from app.modules.anomaly.domain.enums import RiskLevel
 
+#: Anomalies start here; a normal prediction always scores below it.
+ANOMALY_FLOOR = 40.0
+_EPSILON = 1e-9
 
-def normalize_to_risk_score(
-    raw_score: float,
-    score_low: float,
-    score_high: float,
-) -> float:
-    """Convert an Isolation Forest raw score to a 0-100 risk score.
 
-    Higher = more anomalous.  Clamped to [0, 100].
-
-    Defensive against degenerate `score_high == score_low` (returns 0.0
-    rather than dividing by zero).
+def risk_score_from_decision(decision: float, score_low: float, score_high: float) -> float:
     """
-    if score_high == score_low:
-        return 0.0
-    raw = max(min(raw_score, score_high), score_low)
-    risk = 100.0 * (score_high - raw) / (score_high - score_low)
-    if risk < 0.0:
-        return 0.0
-    if risk > 100.0:
-        return 100.0
-    return float(risk)
+    Convert an Isolation Forest decision score to a 0-100 risk score.
+
+    If a calibration bound sits on the wrong side of zero (degenerate
+    calibration data), the other bound's magnitude stands in for it so the
+    mapping stays monotonic.
+    """
+    normal_span = score_high if score_high > _EPSILON else max(abs(score_low), _EPSILON)
+    anomaly_span = -score_low if score_low < -_EPSILON else max(abs(score_high), _EPSILON)
+    if decision >= 0.0:
+        closeness = min(decision / normal_span, 1.0)
+        return round((ANOMALY_FLOOR - 0.01) * (1.0 - closeness), 3)
+    severity = min(-decision / anomaly_span, 1.0)
+    return round(ANOMALY_FLOOR + (100.0 - ANOMALY_FLOOR) * severity, 3)
 
 
 def classify_risk_level(risk_score: float) -> RiskLevel:
@@ -57,6 +55,6 @@ def classify_risk_level(risk_score: float) -> RiskLevel:
         return RiskLevel.CRITICAL
     if risk_score >= 60.0:
         return RiskLevel.HIGH
-    if risk_score >= 40.0:
+    if risk_score >= ANOMALY_FLOOR:
         return RiskLevel.MEDIUM
     return RiskLevel.LOW

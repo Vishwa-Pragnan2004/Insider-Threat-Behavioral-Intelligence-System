@@ -26,8 +26,7 @@ import {
   FormControl,
   Select,
 } from '@mui/material';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import AddIcon from '@mui/icons-material/Add';
+import { Refresh, Add } from '@mui/icons-material';
 import PageHeader from '../../components/common/PageHeader';
 import SeverityBadge from '../../components/common/SeverityBadge';
 import EmptyState from '../../components/common/EmptyState';
@@ -115,7 +114,7 @@ export default function InvestigationsPage() {
         subtitle="Track and manage security investigations"
         actions={
           <Button
-            startIcon={<AddIcon />}
+            startIcon={<Add />}
             variant="contained"
             onClick={() => setCreateOpen(true)}
           >
@@ -152,7 +151,7 @@ export default function InvestigationsPage() {
 
         <Box sx={{ flexGrow: 1 }} />
 
-        <Button startIcon={<RefreshIcon />} variant="outlined" size="small" onClick={() => refetch()}>
+        <Button startIcon={<Refresh />} variant="outlined" size="small" onClick={() => refetch()}>
           Refresh
         </Button>
       </Box>

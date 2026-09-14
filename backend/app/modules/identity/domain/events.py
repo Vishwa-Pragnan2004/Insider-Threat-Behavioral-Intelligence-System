@@ -7,14 +7,13 @@ SECURITY: Events must NEVER contain passwords, tokens, or secrets.
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from app.modules.identity.domain.enums import RoleName
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(frozen=True)
@@ -23,12 +22,12 @@ class AuthAuditEvent:
 
     event_type: str
     occurred_at: datetime = field(default_factory=_now)
-    user_id: Optional[uuid.UUID] = None
-    username: Optional[str] = None
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
+    user_id: uuid.UUID | None = None
+    username: str | None = None
+    ip_address: str | None = None
+    user_agent: str | None = None
     success: bool = True
-    failure_reason: Optional[str] = None
+    failure_reason: str | None = None
     metadata: dict = field(default_factory=dict)
 
 
@@ -37,8 +36,8 @@ class UserRegisteredEvent(AuthAuditEvent):
     """Emitted when a new user successfully registers."""
 
     event_type: str = "USER_REGISTERED"
-    email: Optional[str] = None
-    assigned_role: Optional[RoleName] = None
+    email: str | None = None
+    assigned_role: RoleName | None = None
 
 
 @dataclass(frozen=True)
@@ -89,4 +88,4 @@ class AccountDisabledEvent(AuthAuditEvent):
     """Emitted when an account is disabled by an administrator."""
 
     event_type: str = "ACCOUNT_DISABLED"
-    disabled_by: Optional[uuid.UUID] = None
+    disabled_by: uuid.UUID | None = None

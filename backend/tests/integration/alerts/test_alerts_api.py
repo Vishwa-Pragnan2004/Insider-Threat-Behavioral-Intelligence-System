@@ -28,6 +28,7 @@ from tests.integration.alerts.conftest import (
     admin_token,
     analyst_token,
     anomaly_doc,
+    seed_personal_baseline,
     viewer_token,
 )
 
@@ -385,6 +386,7 @@ async def test_anomaly_detect_triggers_alert_creation(
         "generated_at": datetime.now(UTC),
     }
     await mongo_mock_db["behavioral_features"].insert_one(feat)
+    await seed_personal_baseline(db_session, "agent-user")
 
     # Trigger detection — this should both persist the AnomalyResult
     # AND trigger the alert observer.
@@ -458,6 +460,7 @@ async def test_repeated_anomaly_detect_creates_one_alert(
         "generated_at": datetime.now(UTC),
     }
     await mongo_mock_db["behavioral_features"].insert_one(feat)
+    await seed_personal_baseline(db_session, "dup-user")
 
     # 1. The /anomaly/detect call fires the alert observer (verified by
     #    `test_anomaly_detect_triggers_alert_creation`).
@@ -489,3 +492,52 @@ async def test_repeated_anomaly_detect_creates_one_alert(
         f"{ALERTS_BASE}/", params={"user_id": "dup-user"}, headers=headers
     )
     assert r3.json()["total"] == 1
+
+
+@pytest.mark.asyncio
+async def test_user_still_learning_gets_results_but_no_alert(
+    async_client: AsyncClient, db_session: AsyncSession, mongo_mock_db
+):
+    """Without a personal baseline, anomalies are recorded but raise no alert yet."""
+    token = await admin_token(async_client, db_session)
+    headers = {"Authorization": f"Bearer {token}"}
+    await mongo_mock_db["behavioral_features"].insert_one({
+        "_id": str(uuid.uuid4()),
+        "user_id": "new-starter",
+        "window": "daily",
+        "window_start": datetime(2026, 8, 1, 0, 0, tzinfo=UTC),
+        "window_end": datetime(2026, 8, 2, 0, 0, tzinfo=UTC),
+        "source_dataset": "cert",
+        "feature_version": "behavioral_features_v1",
+        "features": {f: 100.0 for f in [
+            "total_activity_count", "logon_count", "failed_logon_count",
+            "after_hours_activity_count", "unique_active_hours",
+            "unique_device_count", "unique_resource_count",
+            "file_activity_count", "file_copy_count",
+            "usb_activity_count", "email_count", "external_email_count",
+            "http_activity_count", "ldap_activity_count",
+            "process_activity_count", "activity_type_diversity",
+        ]},
+        "event_count": 1,
+        "generated_at": datetime.now(UTC),
+    })
+
+    r = await async_client.post(
+        "/api/v1/anomaly/detect",
+        json={
+            "user_id": "new-starter",
+            "start": "2026-08-01T00:00:00+00:00",
+            "end": "2026-08-02T00:00:00+00:00",
+        },
+        headers=headers,
+    )
+
+    assert r.status_code == 200, r.text
+    [result] = r.json()["results"]
+    assert result["baseline_source"] == "global"
+    assert result["prediction"] == "anomaly"
+    alerts = await async_client.get(
+        f"{ALERTS_BASE}/", params={"user_id": "new-starter"}, headers=headers
+    )
+    assert alerts.json()["total"] == 0
+

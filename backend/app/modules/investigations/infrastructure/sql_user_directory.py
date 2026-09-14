@@ -13,8 +13,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.investigations.domain.repositories import IUserDirectory
 from app.modules.identity.infrastructure.models import UserModel
+from app.modules.investigations.domain.repositories import IUserDirectory
 
 
 class SqlUserDirectory(IUserDirectory):

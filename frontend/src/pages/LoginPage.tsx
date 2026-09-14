@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -11,13 +12,11 @@ import {
   CircularProgress,
   InputAdornment,
   IconButton,
+  Link,
 } from '@mui/material';
-import SecurityIcon from '@mui/icons-material/Security';
-import VisibilityIcon from '@mui/icons-material/Visibility';
-import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
-import EmailIcon from '@mui/icons-material/Email';
-import LockIcon from '@mui/icons-material/Lock';
+import { Security, Visibility, VisibilityOff, Email, Lock } from '@mui/icons-material';
 import { useAuth } from '../hooks/useAuth';
+import { apiErrorMessage } from '../api/userService';
 
 /**
  * LoginPage
@@ -44,11 +43,13 @@ export default function LoginPage() {
       await login({ email, password });
       navigate('/');
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Authentication failed. Please check your credentials.'
-      );
+      // Show the backend's own reason (wrong credentials, request still pending,
+      // declined…) rather than axios's "Request failed with status code …".
+      if (axios.isAxiosError(err) && err.response) {
+        setError(apiErrorMessage(err));
+        return;
+      }
+      setError('Could not reach the server. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -83,7 +84,7 @@ export default function LoginPage() {
                 mb: 2,
               }}
             >
-              <SecurityIcon sx={{ fontSize: 36, color: 'primary.main' }} />
+            <Security sx={{ fontSize: 36, color: 'primary.main' }} />
             </Box>
 
             <Typography
@@ -114,23 +115,23 @@ export default function LoginPage() {
 
           {/* Login Form */}
           <Box component="form" onSubmit={handleSubmit} noValidate>
-            {/* Email Field */}
+            {/* Email or username (the API field is still called `email`) */}
             <TextField
               id="email"
-              label="Email Address"
-              type="email"
+              label="Email or username"
+              type="text"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               fullWidth
               required
-              autoComplete="email"
+              autoComplete="username"
               autoFocus
-              placeholder="analyst@itbis.io"
+              placeholder="analyst@itbis.io or analyst"
               sx={{ mb: 2.5 }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <EmailIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                    <Email sx={{ color: 'text.secondary', fontSize: 20 }} />
                   </InputAdornment>
                 ),
               }}
@@ -151,7 +152,7 @@ export default function LoginPage() {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <LockIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                    <Lock sx={{ color: 'text.secondary', fontSize: 20 }} />
                   </InputAdornment>
                 ),
                 endAdornment: (
@@ -163,9 +164,9 @@ export default function LoginPage() {
                       aria-label={showPassword ? 'hide password' : 'show password'}
                     >
                       {showPassword ? (
-                        <VisibilityOffIcon sx={{ fontSize: 20 }} />
+                        <VisibilityOff sx={{ fontSize: 20 }} />
                       ) : (
-                        <VisibilityIcon sx={{ fontSize: 20 }} />
+                        <Visibility sx={{ fontSize: 20 }} />
                       )}
                     </IconButton>
                   </InputAdornment>
@@ -195,6 +196,13 @@ export default function LoginPage() {
                 'Sign In'
               )}
             </Button>
+
+            <Typography variant="body2" sx={{ mt: 3, textAlign: 'center', color: 'text.secondary' }}>
+              Don&apos;t have an account?{' '}
+              <Link component={RouterLink} to="/request-access" underline="hover" sx={{ fontWeight: 600 }}>
+                Request access
+              </Link>
+            </Typography>
           </Box>
         </CardContent>
       </Card>

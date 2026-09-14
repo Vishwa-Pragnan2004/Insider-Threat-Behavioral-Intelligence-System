@@ -4,7 +4,6 @@ Persists normalised CanonicalEvent documents to MongoDB.
 """
 from collections.abc import Sequence
 from datetime import UTC, datetime
-from typing import Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -58,10 +57,10 @@ class MongoActivityEventStore(IActivityEventStore):
     async def find_events(
         self,
         *,
-        user_id: Optional[str] = None,
-        source_dataset: Optional[str] = None,
-        start: Optional[datetime] = None,
-        end: Optional[datetime] = None,
+        user_id: str | None = None,
+        source_dataset: str | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
         limit: int = 100_000,
     ) -> list[dict]:
         """Find canonical events matching the given filters.

@@ -5,7 +5,6 @@ All values are loaded from environment variables / .env file.
 """
 
 from functools import lru_cache
-from typing import List
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -32,6 +31,17 @@ class Settings(BaseSettings):
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8000
 
+    # --- Continuous detection pipeline -----------------------------------
+    # Recomputes behavioural features -> anomaly detection -> alerts on a
+    # schedule, so new activity becomes alerts without a manual trigger.
+    PIPELINE_ENABLED: bool = True
+    PIPELINE_INTERVAL_SECONDS: int = 300
+    PIPELINE_LOOKBACK_DAYS: int = 2
+    PIPELINE_INITIAL_DELAY_SECONDS: int = 30
+    # Personal baselines: built from the days before the scored window.
+    PIPELINE_BASELINE_HISTORY_DAYS: int = 28
+    PIPELINE_BASELINE_MIN_DAYS: int = 5
+
     FRONTEND_URL: str = "http://localhost:5173"
 
     # ─── Security ──────────────────────────────────────────
@@ -41,6 +51,8 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # ─── PostgreSQL ────────────────────────────────────────
+    # Conventional defaults.  Deployment-specific values (the compose port
+    # remap, IPv4-vs-IPv6 host form) belong in .env, not baked into the code.
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_DB: str = "itbis_db"
@@ -61,6 +73,12 @@ class Settings(BaseSettings):
     MONGO_DB: str = "itbis_events"
     MONGO_USER: str = "itbis_mongo_user"
     MONGO_PASSWORD: str = "itbis_dev_password"
+    # Database the credentials are verified against.  docker-compose creates
+    # the user via MONGO_INITDB_ROOT_USERNAME, which puts it in `admin` — not
+    # in MONGO_DB.  Without this the driver authenticates against MONGO_DB,
+    # where the user does not exist, and every Mongo-backed request fails with
+    # "Authentication failed" while Postgres-backed ones keep working.
+    MONGO_AUTH_SOURCE: str = "admin"
 
     @property
     def mongo_url(self) -> str:
@@ -68,6 +86,7 @@ class Settings(BaseSettings):
         return (
             f"mongodb://{self.MONGO_USER}:{self.MONGO_PASSWORD}"
             f"@{self.MONGO_HOST}:{self.MONGO_PORT}/{self.MONGO_DB}"
+            f"?authSource={self.MONGO_AUTH_SOURCE}"
         )
 
     # ─── Elasticsearch ─────────────────────────────────────
@@ -129,7 +148,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
 
     @property
-    def cors_origins_list(self) -> List[str]:
+    def cors_origins_list(self) -> list[str]:
         """Parse comma-separated CORS origins into a list."""
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
 

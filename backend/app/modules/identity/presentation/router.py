@@ -19,7 +19,7 @@ from app.modules.identity.application.use_cases.register_user import RegisterUse
 from app.modules.identity.application.use_cases.update_user import UpdateUserUseCase
 from app.modules.identity.domain.entities import User
 from app.modules.identity.domain.enums import PermissionName
-from app.modules.identity.domain.exceptions import IdentityError
+from app.modules.identity.domain.exceptions import AccountDisabledError, IdentityError
 from app.modules.identity.infrastructure.redis_token_store import RedisTokenStore
 from app.modules.identity.infrastructure.repositories import (
     SQLRoleRepository,
@@ -70,7 +70,9 @@ async def register(
         result = await use_case.execute(dto)
         return result
     except IdentityError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
 
 @router.post(
@@ -103,8 +105,22 @@ async def login(
     try:
         result = await use_case.execute(dto)
         return result
+    except AccountDisabledError as e:
+        # Reached only with the right password: say why, if it's an access request.
+        from app.modules.users.infrastructure.sql_access_requests import (
+            login_refusal_message,
+        )
+
+        message = await login_refusal_message(db, payload.email)
+        if message:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=message) from e
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)
+        ) from e
     except IdentityError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)
+        ) from e
 
 
 @router.post(
@@ -127,7 +143,9 @@ async def refresh_token(
         result = await use_case.execute(payload.refresh_token)
         return result
     except IdentityError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)
+        ) from e
 
 
 @router.post(
@@ -165,7 +183,9 @@ async def get_me(
         result = await use_case.execute(str(current_user.id))
         return result
     except IdentityError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)
+        ) from e
 
 
 @router.patch(
@@ -192,7 +212,9 @@ async def update_me(
         result = await use_case.execute(str(current_user.id), dto)
         return result
     except IdentityError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
 
 # ─── Demo Endpoints ──────────────────────────────────────────

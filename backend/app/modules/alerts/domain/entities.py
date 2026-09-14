@@ -70,6 +70,18 @@ class AlertDeviation:
     zscore: float
 
 
+@dataclass
+class AlertFinding:
+    """A detector finding cited by an insider-risk alert."""
+
+    category: str
+    title: str
+    severity: float
+    description: str
+    detector: str
+    day: datetime
+
+
 # ─── Alert entity ──────────────────────────────────────────
 
 
@@ -87,7 +99,9 @@ class Alert:
 
     # ─── Provenance ─────────────────────────────────────────
     idempotency_key: str
-    anomaly_result_id: uuid.UUID
+    # The ML result behind a behavioral-model alert; None for alerts raised
+    # by the insider risk engine, which cite their findings instead.
+    anomaly_result_id: uuid.UUID | None
     user_id: str
     source_dataset: str
     window: str
@@ -109,10 +123,23 @@ class Alert:
     assigned_to: str | None = None  # user_id of the assignee
     investigation_id: uuid.UUID | None = None
 
+    # ─── Insider risk context ───────────────────────────────
+    #: "behavioral_model" (one ML result) or "insider_risk" (the risk engine).
+    source: str = "behavioral_model"
+    categories: list[str] = field(default_factory=list)
+    findings: list[AlertFinding] = field(default_factory=list)
+    employee_risk_score: float | None = None
+    priority: float | None = None
+    risk_components: dict[str, float] = field(default_factory=dict)
+
     # ─── Lifecycle ──────────────────────────────────────────
     id: uuid.UUID = field(default_factory=uuid.uuid4)
     created_at: datetime = field(default_factory=_utcnow)
     updated_at: datetime = field(default_factory=_utcnow)
+    # First time an analyst acted on the alert (left OPEN), and when it was
+    # closed out (RESOLVED or FALSE_POSITIVE). Response-time metrics use these.
+    acknowledged_at: datetime | None = None
+    resolved_at: datetime | None = None
 
     # ─── Behaviour ──────────────────────────────────────────
     def change_status(self, target: AlertStatus) -> None:
@@ -129,8 +156,13 @@ class Alert:
             raise ValueError(
                 f"Illegal alert status transition: {self.status.value} -> {target.value}"
             )
+        now = _utcnow()
         self.status = target
-        self.updated_at = _utcnow()
+        self.updated_at = now
+        if self.acknowledged_at is None:
+            self.acknowledged_at = now
+        if target in (AlertStatus.RESOLVED, AlertStatus.FALSE_POSITIVE):  # both terminal
+            self.resolved_at = now
 
     def assign(self, user_id: str) -> None:
         self.assigned_to = user_id

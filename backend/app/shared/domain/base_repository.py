@@ -6,7 +6,7 @@ Enforces the Repository Pattern across the codebase.
 
 import uuid
 from abc import ABC, abstractmethod
-from typing import Generic, List, Optional, TypeVar
+from typing import Generic, TypeVar
 
 from app.shared.domain.base_entity import BaseEntity
 
@@ -22,7 +22,7 @@ class BaseRepository(ABC, Generic[T]):
     """
 
     @abstractmethod
-    async def get_by_id(self, entity_id: uuid.UUID) -> Optional[T]:
+    async def get_by_id(self, entity_id: uuid.UUID) -> T | None:
         """Retrieve a single entity by its UUID. Returns None if not found."""
         raise NotImplementedError
 
@@ -37,6 +37,6 @@ class BaseRepository(ABC, Generic[T]):
         raise NotImplementedError
 
     @abstractmethod
-    async def list_all(self, skip: int = 0, limit: int = 100) -> List[T]:
+    async def list_all(self, skip: int = 0, limit: int = 100) -> list[T]:
         """Return a paginated list of all entities."""
         raise NotImplementedError

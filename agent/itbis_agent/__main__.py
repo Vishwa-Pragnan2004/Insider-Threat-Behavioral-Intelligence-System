@@ -24,6 +24,20 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Path to a YAML config file.",
     )
+    p.add_argument(
+        "--requeue-dead",
+        action="store_true",
+        help=(
+            "Return dead-lettered events in the local queue to pending, then "
+            "exit. Use after fixing whatever caused them to fail (e.g. an "
+            "expired agent token or a server-side rejection)."
+        ),
+    )
+    p.add_argument(
+        "--queue-stats",
+        action="store_true",
+        help="Print local queue counts (pending/sent/dead) and exit.",
+    )
     return p
 
 
@@ -40,6 +54,26 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     configure_logging(config.logging)
+
+    # ─── One-shot maintenance commands ──────────────────────
+    if args.queue_stats or args.requeue_dead:
+        from itbis_agent.queue import PersistentQueue
+
+        queue = PersistentQueue(config.queue, config.agent.device_id)
+        try:
+            if args.requeue_dead:
+                revived = queue.revive_dead()
+                log.info("agent.requeue_dead", revived=revived)
+                print(f"Returned {revived} dead-lettered event(s) to the queue.")
+            stats = queue.stats()
+            log.info("agent.queue_stats", **stats)
+            print(
+                f"Queue: pending={stats['pending']} "
+                f"sent={stats['sent']} dead={stats['dead']}"
+            )
+        finally:
+            queue.close()
+        return 0
 
     runtime = AgentRuntime(config)
     try:

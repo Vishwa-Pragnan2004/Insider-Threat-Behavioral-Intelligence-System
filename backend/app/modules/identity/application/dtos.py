@@ -5,7 +5,6 @@ They decouple Use Cases from the HTTP Presentation layer schemas.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -20,8 +19,8 @@ class RegisterUserDTO:
 class LoginDTO:
     email: str
     password: str
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
+    ip_address: str | None = None
+    user_agent: str | None = None
 
 
 @dataclass

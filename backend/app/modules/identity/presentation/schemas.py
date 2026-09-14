@@ -5,7 +5,6 @@ Pydantic models for HTTP requests and responses.
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-
 # ─── Requests ────────────────────────────────────────────────
 
 class RegisterUserRequest(BaseModel):
@@ -16,7 +15,10 @@ class RegisterUserRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    # Named `email` for existing clients, but a username works too: people
+    # naturally type the name they chose, and a strict email check rejected it
+    # with an unhelpful 422.
+    email: str = Field(..., min_length=1, max_length=255, description="Email or username")
     password: str = Field(...)
 
 

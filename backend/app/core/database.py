@@ -3,7 +3,7 @@ ITBIS — Async Database Engine & Session Factory
 Provides the SQLAlchemy async engine, session maker, and FastAPI dependency.
 """
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import structlog
 from sqlalchemy.ext.asyncio import (

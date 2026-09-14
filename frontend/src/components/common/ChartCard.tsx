@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, Box, IconButton, Tooltip } from '@mui/material';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { MoreVert } from '@mui/icons-material';
 import type { ReactNode } from 'react';
 
 /**
@@ -48,7 +48,7 @@ export default function ChartCard({
           showMenu ? (
             <Tooltip title="Options">
               <IconButton size="small" sx={{ color: 'text.secondary' }}>
-                <MoreVertIcon fontSize="small" />
+                <MoreVert fontSize="small" />
               </IconButton>
             </Tooltip>
           ) : null

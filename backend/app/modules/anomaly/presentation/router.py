@@ -9,7 +9,6 @@ Endpoints (all under /api/v1/anomaly):
   GET   /users/{id}      -> list a user's results
   GET   /model-info      -> metadata about the loaded model
 """
-# ruff: noqa: B008
 import uuid
 
 import structlog

@@ -7,7 +7,7 @@ from datetime import datetime
 import structlog
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.modules.alerts.domain.entities import Alert, AlertDeviation
+from app.modules.alerts.domain.entities import Alert, AlertDeviation, AlertFinding
 from app.modules.alerts.domain.enums import AlertSeverity, AlertStatus
 from app.modules.alerts.domain.repositories import IAlertRepository
 
@@ -54,7 +54,7 @@ class MongoAlertRepository(IAlertRepository):
         return {
             "_id": str(a.id),
             "idempotency_key": a.idempotency_key,
-            "anomaly_result_id": str(a.anomaly_result_id),
+            "anomaly_result_id": str(a.anomaly_result_id) if a.anomaly_result_id else None,
             "user_id": a.user_id,
             "source_dataset": a.source_dataset,
             "window": a.window,
@@ -82,6 +82,30 @@ class MongoAlertRepository(IAlertRepository):
             "investigation_id": str(a.investigation_id) if a.investigation_id else None,
             "created_at": a.created_at,
             "updated_at": a.updated_at,
+            "acknowledged_at": a.acknowledged_at,
+            "resolved_at": a.resolved_at,
+            **MongoAlertRepository._risk_fields(a),
+        }
+
+    @staticmethod
+    def _risk_fields(a: Alert) -> dict:
+        return {
+            "source": a.source,
+            "categories": list(a.categories),
+            "findings": [
+                {
+                    "category": f.category,
+                    "title": f.title,
+                    "severity": float(f.severity),
+                    "description": f.description,
+                    "detector": f.detector,
+                    "day": f.day,
+                }
+                for f in a.findings
+            ],
+            "employee_risk_score": a.employee_risk_score,
+            "priority": a.priority,
+            "risk_components": dict(a.risk_components),
         }
 
     @staticmethod
@@ -96,7 +120,9 @@ class MongoAlertRepository(IAlertRepository):
         return Alert(
             id=uuid.UUID(doc["_id"]) if isinstance(doc.get("_id"), str) else uuid.uuid4(),
             idempotency_key=doc["idempotency_key"],
-            anomaly_result_id=uuid.UUID(doc["anomaly_result_id"]),
+            anomaly_result_id=(
+                uuid.UUID(doc["anomaly_result_id"]) if doc.get("anomaly_result_id") else None
+            ),
             user_id=doc["user_id"],
             source_dataset=doc.get("source_dataset", "all"),
             window=doc.get("window", "daily"),
@@ -128,6 +154,24 @@ class MongoAlertRepository(IAlertRepository):
             ),
             created_at=_to_dt(doc.get("created_at")),
             updated_at=_to_dt(doc.get("updated_at")),
+            acknowledged_at=_to_dt(doc.get("acknowledged_at")),
+            resolved_at=_to_dt(doc.get("resolved_at")),
+            source=doc.get("source", "behavioral_model"),
+            categories=list(doc.get("categories") or []),
+            findings=[
+                AlertFinding(
+                    category=f["category"],
+                    title=f.get("title", ""),
+                    severity=float(f.get("severity") or 0.0),
+                    description=f.get("description", ""),
+                    detector=f.get("detector", ""),
+                    day=_to_dt(f.get("day")),
+                )
+                for f in doc.get("findings") or []
+            ],
+            employee_risk_score=doc.get("employee_risk_score"),
+            priority=doc.get("priority"),
+            risk_components=dict(doc.get("risk_components") or {}),
         )
 
     async def upsert(self, alert: Alert) -> tuple[Alert, bool]:
@@ -255,6 +299,28 @@ class MongoAlertRepository(IAlertRepository):
             end=end,
         )
         return int(await self.db[self.COLLECTION].count_documents(q))
+
+    async def update_content(self, alert: Alert) -> Alert:
+        """Refresh what an open alert says (severity, findings, scores) as evidence grows."""
+        await self._ensure_indexes()
+        from datetime import UTC
+
+        alert.updated_at = datetime.now(UTC)
+        await self.db[self.COLLECTION].update_one(
+            {"_id": str(alert.id)},
+            {
+                "$set": {
+                    "title": alert.title,
+                    "description": alert.description,
+                    "risk_score": float(alert.risk_score),
+                    "risk_level": alert.risk_level,
+                    "severity": alert.severity.value,
+                    "updated_at": alert.updated_at,
+                    **self._risk_fields(alert),
+                }
+            },
+        )
+        return alert
 
     async def update(self, alert: Alert) -> Alert:
         await self._ensure_indexes()

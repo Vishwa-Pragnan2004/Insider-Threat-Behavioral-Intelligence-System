@@ -8,7 +8,7 @@ after ingestion and parsing. This is the single source of truth for events.
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -64,6 +64,9 @@ class EventType(str, Enum):
     NETWORK_CONNECTION = "network_connection"
     VPN_CONNECT = "vpn_connect"
     VPN_DISCONNECT = "vpn_disconnect"
+    # Remote Desktop session reconnect / disconnect (endpoint agent)
+    REMOTE_SESSION_CONNECT = "remote_session_connect"
+    REMOTE_SESSION_DISCONNECT = "remote_session_disconnect"
     DATA_TRANSFER = "data_transfer"
 
     # Physical
@@ -102,7 +105,7 @@ class CanonicalEvent(BaseModel):
     event_id: uuid.UUID = Field(default_factory=uuid.uuid4)
     event_type: EventType
     source_dataset: str = Field(description="Dataset or log source name, e.g. 'cert_r4.2'")
-    raw_event_id: Optional[str] = Field(
+    raw_event_id: str | None = Field(
         default=None,
         description="Original event ID from the source log"
     )
@@ -116,58 +119,58 @@ class CanonicalEvent(BaseModel):
 
     # ─── Actor ─────────────────────────────────────────────
     user_id: str = Field(description="Internal ITBIS user identifier")
-    username: Optional[str] = None
-    user_email: Optional[str] = None
-    employee_id: Optional[str] = None
-    department: Optional[str] = None
+    username: str | None = None
+    user_email: str | None = None
+    employee_id: str | None = None
+    department: str | None = None
 
     # ─── Asset / Device ────────────────────────────────────
-    device_id: Optional[str] = None
-    device_name: Optional[str] = None
-    device_type: Optional[str] = None
-    ip_address: Optional[str] = None
-    mac_address: Optional[str] = None
-    operating_system: Optional[str] = None
+    device_id: str | None = None
+    device_name: str | None = None
+    device_type: str | None = None
+    ip_address: str | None = None
+    mac_address: str | None = None
+    operating_system: str | None = None
 
     # ─── Activity Details ──────────────────────────────────
-    target_resource: Optional[str] = Field(
+    target_resource: str | None = Field(
         default=None,
         description="File path, URL, email address, etc."
     )
-    target_type: Optional[str] = Field(
+    target_type: str | None = Field(
         default=None,
         description="'file', 'url', 'email', 'process', etc."
     )
-    action: Optional[str] = None
-    result: Optional[str] = Field(
+    action: str | None = None
+    result: str | None = Field(
         default=None,
         description="'success', 'failure', 'blocked', etc."
     )
 
     # ─── Volume / Size ─────────────────────────────────────
-    bytes_transferred: Optional[int] = None
-    file_count: Optional[int] = None
+    bytes_transferred: int | None = None
+    file_count: int | None = None
 
     # ─── Location ──────────────────────────────────────────
-    location: Optional[str] = None
-    country: Optional[str] = None
-    city: Optional[str] = None
-    is_remote: Optional[bool] = None
+    location: str | None = None
+    country: str | None = None
+    city: str | None = None
+    is_remote: bool | None = None
 
     # ─── Risk Indicators ───────────────────────────────────
     risk_indicators: list[str] = Field(
         default_factory=list,
         description="Flags applied during enrichment, e.g. ['after_hours', 'usb_detected']"
     )
-    risk_score: Optional[float] = None
-    risk_level: Optional[RiskLevel] = None
+    risk_score: float | None = None
+    risk_level: RiskLevel | None = None
 
     # ─── Raw / Extra ───────────────────────────────────────
-    raw_payload: Optional[Dict[str, Any]] = Field(
+    raw_payload: dict[str, Any] | None = Field(
         default=None,
         description="Original unmodified event data from the source"
     )
-    enrichments: Optional[Dict[str, Any]] = Field(
+    enrichments: dict[str, Any] | None = Field(
         default=None,
         description="Additional enrichment data applied during processing"
     )

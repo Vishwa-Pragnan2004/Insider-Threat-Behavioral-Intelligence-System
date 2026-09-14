@@ -32,8 +32,25 @@ class LoginUserUseCase:
         self.token_store = token_store
         self.settings = get_settings()
 
+    async def _find_account(self, identifier: str):  # noqa: ANN202
+        """The account for an email address or username, ignoring case."""
+        identifier = identifier.strip()
+        if not identifier:
+            return None
+        lookups = (
+            (self.user_repo.get_by_email, self.user_repo.get_by_username)
+            if "@" in identifier
+            else (self.user_repo.get_by_username, self.user_repo.get_by_email)
+        )
+        for candidate in dict.fromkeys((identifier, identifier.lower())):
+            for lookup in lookups:
+                user = await lookup(candidate)
+                if user is not None:
+                    return user
+        return None
+
     async def execute(self, dto: LoginDTO) -> TokenPairDTO:
-        user = await self.user_repo.get_by_email(dto.email)
+        user = await self._find_account(dto.email)
 
         # 1. Verify User Exists
         if not user:

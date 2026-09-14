@@ -26,7 +26,9 @@ class TrainRequest(BaseModel):
 
     source_dataset: str = Field(default="all")
     window: str = Field(default="daily")
-    contamination: float = Field(default=0.1, description="Isolation Forest contamination parameter")
+    contamination: float = Field(
+        default=0.1, description="Isolation Forest contamination parameter"
+    )
     n_estimators: int = Field(default=100, description="Number of Isolation Forest trees")
 
 

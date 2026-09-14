@@ -48,6 +48,7 @@ def test_high_anomaly_with_default_policy_creates_alert():
         risk_level=RiskLevel.HIGH,
         risk_score=60.0,
         prediction=AnomalyPrediction.ANOMALY,
+        baseline_source="personal",
     )
 
 
@@ -57,6 +58,7 @@ def test_critical_anomaly_with_default_policy_creates_alert():
         risk_level=RiskLevel.CRITICAL,
         risk_score=80.0,
         prediction=AnomalyPrediction.ANOMALY,
+        baseline_source="personal",
     )
 
 

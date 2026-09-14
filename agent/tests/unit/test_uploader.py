@@ -161,6 +161,12 @@ def test_timeout_triggers_retry(server_cfg, upload_cfg, queue):
     uploader.stop()
 
 
+
+def _clear_backoff(queue) -> None:
+    """Make every pending row immediately eligible again (skips the wait)."""
+    with queue._tx() as conn:
+        conn.execute("UPDATE events SET next_attempt_at = NULL WHERE status = 'pending'")
+
 # ─── Permanent failures ─────────────────────────────────────
 
 
@@ -178,16 +184,116 @@ def test_400_marks_dead(server_cfg, upload_cfg, queue):
     uploader.stop()
 
 
-def test_401_is_permanent(server_cfg, upload_cfg, queue):
+# ─── Credential rejection (retryable, never destructive) ────
+
+
+@pytest.mark.parametrize("status", [401, 403])
+def test_auth_rejection_retains_events(status, server_cfg, upload_cfg, queue):
+    """
+    A rejected credential must NOT destroy queued events.
+
+    Regression test: 401/403 used to raise PermanentUploadError, which
+    dead-lettered the batch.  Because the agent ships with a token that
+    expires, that silently discarded every event collected afterwards.
+    """
+    _seed(queue, n=3)
+    uploader = Uploader(server_cfg, upload_cfg, queue, agent_id="x")
+
+    with respx.mock(base_url=server_cfg.base_url) as mock:
+        mock.post(server_cfg.events_path).mock(
+            return_value=httpx.Response(status, text="nope")
+        )
+        stats = uploader.tick()
+
+    assert stats["rejected"] == 0
+    assert stats["retries"] == 1
+    assert queue.count_dead() == 0
+    assert queue.count_pending() == 3
+    uploader.stop()
+
+
+def test_auth_rejection_does_not_consume_retry_budget(server_cfg, upload_cfg, queue):
+    """Auth failures apply backoff but must not burn the per-event retries."""
     _seed(queue, n=1)
     uploader = Uploader(server_cfg, upload_cfg, queue, agent_id="x")
 
     with respx.mock(base_url=server_cfg.base_url) as mock:
-        mock.post(server_cfg.events_path).mock(return_value=httpx.Response(401, text="nope"))
+        mock.post(server_cfg.events_path).mock(
+            return_value=httpx.Response(401, text="nope")
+        )
+        # More auth failures than max_retries (3) — nothing may die.
+        for _ in range(6):
+            uploader.tick()
+            _clear_backoff(queue)
+
+    assert queue.count_dead() == 0
+    assert queue.count_pending() == 1
+    uploader.stop()
+
+
+def test_events_drain_after_credential_is_replaced(server_cfg, upload_cfg, queue):
+    """After auth starts succeeding, the retained events upload normally."""
+    _seed(queue, n=2)
+    uploader = Uploader(server_cfg, upload_cfg, queue, agent_id="x")
+
+    with respx.mock(base_url=server_cfg.base_url) as mock:
+        mock.post(server_cfg.events_path).mock(
+            return_value=httpx.Response(401, text="expired")
+        )
+        uploader.tick()
+
+    assert queue.count_pending() == 2
+    _clear_backoff(queue)
+
+    with respx.mock(base_url=server_cfg.base_url) as mock:
+        mock.post(server_cfg.events_path).mock(
+            return_value=httpx.Response(
+                200, json={"accepted": 2, "duplicates": 0, "rejected": 0, "results": []}
+            )
+        )
         stats = uploader.tick()
 
-    assert stats["rejected"] == 1
+    assert stats["sent"] == 2
+    assert queue.count_pending() == 0
+    assert queue.count_dead() == 0
+    uploader.stop()
+
+
+# ─── max_retries enforcement ────────────────────────────────
+
+
+def test_transient_failures_dead_letter_after_max_retries(server_cfg, upload_cfg, queue):
+    """max_retries was previously dead config — genuine transients now cap out."""
+    _seed(queue, n=1)
+    uploader = Uploader(server_cfg, upload_cfg, queue, agent_id="x")
+
+    with respx.mock(base_url=server_cfg.base_url) as mock:
+        mock.post(server_cfg.events_path).mock(return_value=httpx.Response(503, text="down"))
+        # max_retries=3 -> the 4th failure exhausts the budget.
+        for _ in range(4):
+            uploader.tick()
+            _clear_backoff(queue)
+
     assert queue.count_dead() == 1
+    assert queue.count_pending() == 0
+    uploader.stop()
+
+
+# ─── Dead-letter recovery ───────────────────────────────────
+
+
+def test_revive_dead_returns_events_to_pending(server_cfg, upload_cfg, queue):
+    _seed(queue, n=2)
+    uploader = Uploader(server_cfg, upload_cfg, queue, agent_id="x")
+
+    with respx.mock(base_url=server_cfg.base_url) as mock:
+        mock.post(server_cfg.events_path).mock(return_value=httpx.Response(400, text="bad"))
+        uploader.tick()
+
+    assert queue.count_dead() == 2
+    assert queue.revive_dead() == 2
+    assert queue.count_dead() == 0
+    assert queue.count_pending() == 2
     uploader.stop()
 
 

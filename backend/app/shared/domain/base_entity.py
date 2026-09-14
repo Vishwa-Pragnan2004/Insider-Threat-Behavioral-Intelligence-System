@@ -4,7 +4,7 @@ All domain entities inherit from this base class.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -21,8 +21,8 @@ class BaseEntity:
 
     def __init__(self, id: uuid.UUID | None = None) -> None:
         self._id: uuid.UUID = id or uuid.uuid4()
-        self._created_at: datetime = datetime.now(timezone.utc)
-        self._updated_at: datetime = datetime.now(timezone.utc)
+        self._created_at: datetime = datetime.now(UTC)
+        self._updated_at: datetime = datetime.now(UTC)
         self._domain_events: list[Any] = []
 
     @property
@@ -39,7 +39,7 @@ class BaseEntity:
 
     def _touch(self) -> None:
         """Update the updated_at timestamp. Call after any state mutation."""
-        self._updated_at = datetime.now(timezone.utc)
+        self._updated_at = datetime.now(UTC)
 
     def add_domain_event(self, event: Any) -> None:
         """Queue a domain event for dispatch after the entity is persisted."""

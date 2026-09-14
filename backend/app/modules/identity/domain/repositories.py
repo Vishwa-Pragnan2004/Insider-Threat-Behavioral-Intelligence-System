@@ -6,7 +6,6 @@ Concrete implementations live in infrastructure/.
 
 import uuid
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from app.modules.identity.domain.entities import Role, User
 from app.modules.identity.domain.enums import RoleName
@@ -16,17 +15,17 @@ class IUserRepository(ABC):
     """Abstract contract for user persistence."""
 
     @abstractmethod
-    async def get_by_id(self, user_id: uuid.UUID) -> Optional[User]:
+    async def get_by_id(self, user_id: uuid.UUID) -> User | None:
         """Find a user by their UUID. Returns None if not found."""
         raise NotImplementedError
 
     @abstractmethod
-    async def get_by_email(self, email: str) -> Optional[User]:
+    async def get_by_email(self, email: str) -> User | None:
         """Find a user by email (case-insensitive). Returns None if not found."""
         raise NotImplementedError
 
     @abstractmethod
-    async def get_by_username(self, username: str) -> Optional[User]:
+    async def get_by_username(self, username: str) -> User | None:
         """Find a user by username (case-insensitive). Returns None if not found."""
         raise NotImplementedError
 
@@ -55,7 +54,7 @@ class IRoleRepository(ABC):
     """Abstract contract for role and permission persistence."""
 
     @abstractmethod
-    async def get_by_name(self, name: RoleName) -> Optional[Role]:
+    async def get_by_name(self, name: RoleName) -> Role | None:
         """Find a role by its name. Returns None if not found."""
         raise NotImplementedError
 

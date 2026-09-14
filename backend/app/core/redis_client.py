@@ -3,7 +3,6 @@ ITBIS — Redis Client Factory
 Provides async Redis connection for token blacklist, caching, and sessions.
 """
 
-from typing import Optional
 
 import redis.asyncio as aioredis
 import structlog
@@ -12,7 +11,7 @@ from app.core.config import get_settings
 
 logger = structlog.get_logger(__name__)
 
-_redis_client: Optional[aioredis.Redis] = None
+_redis_client: aioredis.Redis | None = None
 
 
 async def get_redis() -> aioredis.Redis:

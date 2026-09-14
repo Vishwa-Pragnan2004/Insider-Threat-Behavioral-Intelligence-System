@@ -5,8 +5,7 @@ These represent the business concepts, not the database structure.
 """
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from app.modules.identity.domain.enums import PermissionName, RoleName
 
@@ -51,7 +50,7 @@ class Role:
         self,
         id: uuid.UUID,
         name: RoleName,
-        permissions: Optional[list[Permission]] = None,
+        permissions: list[Permission] | None = None,
     ) -> None:
         self._id = id
         self._name = name
@@ -105,10 +104,10 @@ class User:
         is_active: bool = True,
         is_verified: bool = False,
         is_superadmin: bool = False,
-        created_at: Optional[datetime] = None,
-        updated_at: Optional[datetime] = None,
-        last_login_at: Optional[datetime] = None,
-        roles: Optional[list[Role]] = None,
+        created_at: datetime | None = None,
+        updated_at: datetime | None = None,
+        last_login_at: datetime | None = None,
+        roles: list[Role] | None = None,
     ) -> None:
         self._id = id
         self._username = username.strip().lower()
@@ -118,8 +117,8 @@ class User:
         self._is_active = is_active
         self._is_verified = is_verified
         self._is_superadmin = is_superadmin
-        self._created_at = created_at or datetime.now(timezone.utc)
-        self._updated_at = updated_at or datetime.now(timezone.utc)
+        self._created_at = created_at or datetime.now(UTC)
+        self._updated_at = updated_at or datetime.now(UTC)
         self._last_login_at = last_login_at
         self._roles: list[Role] = roles or []
 
@@ -166,7 +165,7 @@ class User:
         return self._updated_at
 
     @property
-    def last_login_at(self) -> Optional[datetime]:
+    def last_login_at(self) -> datetime | None:
         return self._last_login_at
 
     @property
@@ -177,17 +176,17 @@ class User:
     def disable(self) -> None:
         """Deactivate the account. All future logins will be refused."""
         self._is_active = False
-        self._updated_at = datetime.now(timezone.utc)
+        self._updated_at = datetime.now(UTC)
 
     def enable(self) -> None:
         """Re-activate a previously disabled account."""
         self._is_active = True
-        self._updated_at = datetime.now(timezone.utc)
+        self._updated_at = datetime.now(UTC)
 
     def mark_login(self) -> None:
         """Record successful login timestamp."""
-        self._last_login_at = datetime.now(timezone.utc)
-        self._updated_at = datetime.now(timezone.utc)
+        self._last_login_at = datetime.now(UTC)
+        self._updated_at = datetime.now(UTC)
 
     def update_password(self, new_hashed_password: str) -> None:
         """
@@ -195,7 +194,7 @@ class User:
         NEVER call this with a plaintext password.
         """
         self._hashed_password = new_hashed_password
-        self._updated_at = datetime.now(timezone.utc)
+        self._updated_at = datetime.now(UTC)
 
     def has_permission(self, permission: PermissionName) -> bool:
         """Return True if any of this user's roles carries the permission."""
@@ -211,7 +210,22 @@ class User:
         """Assign a role to this user if not already assigned."""
         if not self.has_role(role.name):
             self._roles.append(role)
-            self._updated_at = datetime.now(timezone.utc)
+            self._updated_at = datetime.now(UTC)
+
+    def set_roles(self, roles: list[Role]) -> None:
+        """Replace this user's roles; duplicates collapse to one."""
+        unique: dict[RoleName, Role] = {}
+        for role in roles:
+            unique.setdefault(role.name, role)
+        self._roles = list(unique.values())
+        self._updated_at = datetime.now(UTC)
+
+    def remove_role(self, role_name: RoleName) -> None:
+        """Remove a role if the user has it."""
+        remaining = [role for role in self._roles if role.name != role_name]
+        if len(remaining) != len(self._roles):
+            self._roles = remaining
+            self._updated_at = datetime.now(UTC)
 
     def permission_names(self) -> list[str]:
         """Return a flat deduplicated list of permission name strings."""

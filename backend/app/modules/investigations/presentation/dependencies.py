@@ -1,7 +1,6 @@
 """
 ITBIS — Investigations Module: FastAPI Dependencies
 """
-# ruff: noqa: B008
 from fastapi import Depends
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from sqlalchemy.ext.asyncio import AsyncSession

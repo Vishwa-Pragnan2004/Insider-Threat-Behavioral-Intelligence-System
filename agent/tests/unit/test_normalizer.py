@@ -137,7 +137,7 @@ def test_normalises_process_creation(normaliser):
     assert ev.event_type == EventType.APP_LAUNCH
     assert ev.user_id == "DOMAIN\\jsmith"
     assert ev.target_resource == "powershell.exe -enc ..."
-    assert ev.raw_event_id == "4688-4321"
+    assert ev.raw_event_id == "4688-4321-2026-08-30T08:14:22+00:00"
     assert ev.raw_payload["parent_process_id"] == 1234
 
 
@@ -217,3 +217,51 @@ def test_unknown_source_returns_none(normaliser):
 
 def test_empty_dict_returns_none(normaliser):
     assert normaliser.normalise({}) is None
+
+
+# ─── Occurrence identity (regressions) ──────────────────────
+#
+# The queue drops any event whose idempotency key it has already seen. Event
+# IDs used to be "4688-<pid>" and "2003-<drive letter>", so a recycled PID or a
+# second insert of a drive at E: was silently discarded as a "duplicate".
+
+
+def test_recycled_pid_is_a_distinct_process(normaliser):
+    base = {"source": "process", "event_id": 4688, "process_name": "notepad.exe",
+            "process_id": 4242}
+    first = normaliser.normalise({**base, "time_generated": "20260914140000.000000+330"})
+    later = normaliser.normalise({**base, "time_generated": "20260914150000.000000+330"})
+    assert first.raw_event_id != later.raw_event_id
+    assert first.idempotency_key() != later.idempotency_key()
+
+
+def test_repeat_insert_of_same_drive_is_distinct(normaliser):
+    base = {"source": "usb", "event_id": 2003, "kind": "insert", "device_id": "E:"}
+    first = normaliser.normalise({**base, "time_generated": "2026-09-14T08:36:08+00:00"})
+    later = normaliser.normalise({**base, "time_generated": "2026-09-14T08:46:08+00:00"})
+    assert first.raw_event_id != later.raw_event_id
+    assert first.idempotency_key() != later.idempotency_key()
+
+
+def test_usb_timestamp_is_the_detection_time(normaliser):
+    from datetime import UTC, datetime
+
+    raw = {"source": "usb", "event_id": 2003, "kind": "insert", "device_id": "E:",
+           "time_generated": "2026-09-14T08:36:08+00:00"}
+    ev = normaliser.normalise(raw)
+    assert ev.timestamp == datetime(2026, 9, 14, 8, 36, 8, tzinfo=UTC)
+
+
+def test_repeat_usb_insert_is_queued_not_dropped(normaliser, tmp_path):
+    """End to end through the real queue — exactly the drop that was observed."""
+    from itbis_agent.config import QueueConfig
+    from itbis_agent.queue import PersistentQueue
+
+    queue = PersistentQueue(QueueConfig(db_path=str(tmp_path / "q.db")), agent_id="T")
+    try:
+        base = {"source": "usb", "event_id": 2003, "kind": "insert", "device_id": "E:"}
+        for when in ("2026-09-14T08:36:08+00:00", "2026-09-14T08:46:08+00:00"):
+            assert queue.enqueue(normaliser.normalise({**base, "time_generated": when}))
+        assert queue.count_pending() == 2
+    finally:
+        queue.close()

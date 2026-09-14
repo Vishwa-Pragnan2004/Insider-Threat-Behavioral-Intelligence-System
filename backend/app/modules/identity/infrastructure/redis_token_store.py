@@ -3,7 +3,6 @@ ITBIS — Identity Module: Redis Token Store
 Implements IRefreshTokenStore using Redis.
 """
 
-import redis.asyncio as aioredis
 from redis.asyncio import Redis
 
 from app.modules.identity.domain.repositories import IRefreshTokenStore

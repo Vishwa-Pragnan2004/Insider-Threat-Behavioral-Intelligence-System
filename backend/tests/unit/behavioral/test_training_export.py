@@ -58,6 +58,16 @@ class FakeFeatureStore(IBehavioralFeatureStore):
             and (source_dataset is None or d.source_dataset == source_dataset)
         ]
 
+    async def list_all_features(self, source_dataset=None, window=None):
+        return sorted(
+            [
+                d for d in self.docs
+                if (source_dataset is None or d.source_dataset == source_dataset)
+                and (window is None or d.window == window)
+            ],
+            key=lambda d: d.window_start,
+        )
+
 
 def _make_row(
     *,

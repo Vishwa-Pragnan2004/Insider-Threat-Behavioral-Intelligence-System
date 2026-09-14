@@ -14,8 +14,8 @@ class UpdateUserUseCase:
     async def execute(self, user_id: str, dto: UpdateUserDTO) -> UserProfileDTO:
         try:
             uid = uuid.UUID(user_id)
-        except ValueError:
-            raise IdentityError(f"Invalid user ID: {user_id}")
+        except ValueError as exc:
+            raise IdentityError(f"Invalid user ID: {user_id}") from exc
 
         user = await self._user_repo.get_by_id(uid)
         if not user:

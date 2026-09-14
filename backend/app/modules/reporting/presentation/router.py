@@ -16,10 +16,8 @@ from fastapi.responses import StreamingResponse
 
 from app.modules.identity.domain.enums import PermissionName
 from app.modules.identity.presentation.dependencies import require_permission
-from app.modules.reporting.application.dtos import ReportRequest
 from app.modules.reporting.application.report_service import ReportService
 from app.modules.reporting.presentation.dependencies import get_report_service
-
 
 router = APIRouter()
 

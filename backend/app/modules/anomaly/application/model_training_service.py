@@ -6,7 +6,6 @@ the artifact to disk for use by ModelService during inference.
 """
 from __future__ import annotations
 
-import os
 import warnings
 from pathlib import Path
 
@@ -16,14 +15,16 @@ import structlog
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 
+from app.modules.anomaly.application.model_service import DEFAULT_ARTIFACT_PATH
 from app.modules.behavioral.domain.enums import FEATURE_NAMES, FEATURE_VERSION
 
 log = structlog.get_logger(__name__)
 
-DEFAULT_OUTPUT_PATH = os.environ.get(
-    "ITBIS_MODEL_PATH",
-    "./ml_model/itbis_behavior_model_v2.joblib",
-)
+# Training must write exactly where serving reads.  These were previously two
+# independent CWD-relative defaults, so running training from backend/ wrote a
+# second artifact that the server (started from the repo root) never loaded —
+# and vice versa.  One constant, one location.
+DEFAULT_OUTPUT_PATH = DEFAULT_ARTIFACT_PATH
 
 
 def _safe_std(v: float) -> float:
@@ -103,7 +104,7 @@ class ModelTrainingService:
         model_features = list(FEATURE_NAMES) + z_feature_columns
 
         X_32 = np.zeros((len(feature_rows), 32), dtype=np.float64)
-        for row_idx, row in enumerate(feature_rows):
+        for row_idx, _row in enumerate(feature_rows):
             for col_idx, name in enumerate(FEATURE_NAMES):
                 X_32[row_idx, col_idx] = X[row_idx, col_idx]
                 mean = global_means[name]
@@ -122,7 +123,8 @@ class ModelTrainingService:
         )
         model.fit(X_scaled)
 
-        scores = model.score_samples(X_scaled)
+        # Calibrate in the space ModelService scores in (see risk_scoring.py).
+        scores = model.decision_function(X_scaled)
         score_low = float(np.percentile(scores, 5))
         score_high = float(np.percentile(scores, 95))
 
@@ -145,6 +147,7 @@ class ModelTrainingService:
                 "n_training_rows": len(feature_rows),
                 "contamination": contamination,
                 "n_estimators": n_estimators,
+                "score_space": "decision_function",
             },
         }
 

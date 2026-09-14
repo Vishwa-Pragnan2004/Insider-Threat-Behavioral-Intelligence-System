@@ -3,7 +3,6 @@ ITBIS — Insider Threat Behavioral Intelligence System
 FastAPI Application Entry Point
 """
 
-import logging
 from contextlib import asynccontextmanager
 
 import structlog
@@ -11,14 +10,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
-
+from app.api.v1.router import api_v1_router
 from app.core.config import get_settings
 from app.core.database import AsyncSessionLocal
 from app.core.logging import configure_logging
 from app.core.mongo_client import close_mongo
 from app.core.redis_client import close_redis, get_redis
-from app.api.v1.router import api_v1_router
 from app.modules.identity.infrastructure.seeders import seed_identity_module
+from app.modules.ueba.application.detection_pipeline import build_scheduler
 
 # ─── Configure structured logging ───────────────────────────
 configure_logging()
@@ -41,13 +40,21 @@ async def lifespan(app: FastAPI):
     )
     # Initialize connections
     await get_redis()
-    
+
     # Run seeders
     async with AsyncSessionLocal() as session:
         await seed_identity_module(session)
         await session.commit()
 
+    # Continuous detection: turn new activity into alerts on a schedule.
+    pipeline_scheduler = build_scheduler(settings) if settings.PIPELINE_ENABLED else None
+    if pipeline_scheduler is not None:
+        pipeline_scheduler.start()
+
     yield
+
+    if pipeline_scheduler is not None:
+        await pipeline_scheduler.stop()
     logger.info("ITBIS shutting down")
     # Close connections
     await close_redis()
