@@ -23,22 +23,6 @@ The system collects and processes activity logs, establishes behavioral baseline
 
 ---
 
-## Key Capabilities
-
-| Capability | Status | Description |
-|---|---|---|
-| 🔍 **Behavioral Profiling** | ✅ Implemented | Learns normal user behavior and peer-group patterns |
-| 🤖 **Anomaly Detection** | ✅ Implemented | Isolation Forest + unsupervised ML for unknown threats |
-| ⚠️ **Risk Scoring** | ✅ Implemented | Explainable composite insider risk scores |
-| 🚨 **Alert Management** | ✅ Implemented | Deduplication, severity, routing, enrichment |
-| 🔎 **Threat Investigation** | ✅ Implemented | Timeline, evidence collection, case management |
-| 📊 **SOC Dashboard** | ✅ Implemented | Real-time analyst view of threats and investigations |
-| 🖥️ **Endpoint Agent** | ✅ Implemented | Windows agent with per-device revocable credentials |
-| 📋 **Response Workflows** | 📋 Planned | Playbooks, automation, SOAR integration |
-| 📈 **Reporting** | ✅ Implemented | CSV export for alerts and investigations |
-
----
-
 ## Threat Categories Detected
 
 - Insider data theft & exfiltration
@@ -306,27 +290,6 @@ project2/
 ├── PROJECT_RULES.md            # Project governance rules
 └── README.md                   # This file
 ```
-
----
-
-## Implementation Phases
-
-| Phase | Status | Description |
-|---|---|---|
-| **Phase 0** | ✅ Complete | Project foundation, structure, Docker |
-| **Phase 1** | ✅ Complete | Identity & Access — Auth, JWT, RBAC |
-| **Phase 2** | ✅ Complete | Activity & Event Ingestion — CSV, parsers, canonical events |
-| **Phase 3** | ✅ Complete | Windows Endpoint Agent — `agent/` directory |
-| **Phase 4** | ✅ Complete | Behavioral Feature Engineering — 16 features, user baselines |
-| **Phase 5** | ✅ Complete | ML Anomaly Detection — Isolation Forest, risk scoring |
-| **Phase 6.1** | ✅ Complete | Alerts & Investigations — lifecycle, linking, notes |
-| **Phase 6.2** | ✅ Complete | Frontend SOC Dashboard — React/Vite, real API integration |
-| **Phase 6.3** | ✅ Complete | System Integration Audit — Full architecture review |
-| **Phase 6.4** | ✅ Complete | Alert Generation Frontend — UI button |
-| **Phase 6.5** | ✅ Complete | End-to-End Verification — All flows tested |
-| **Phase 7** | 🔄 In Progress | Deployment, Documentation & Demo Readiness |
-| **Phase 8** | ✅ Complete | Agent device enrollment — per-device revocable credentials |
-| **Phase 9+** | ⏳ Pending | Risk Module, UEBA, Notifications, Response Workflows, frontend tests |
 
 ---
 
