@@ -35,7 +35,7 @@ from tests.unit.anomaly.test_anomaly_detection_service import (  # noqa: F401 - 
     service,
 )
 
-ARTIFACT = PROJECT_ROOT / "ml_model" / "itbis_behavior_model_v2.joblib"
+ARTIFACT = PROJECT_ROOT / "ml_model" / "itbis_behavior_model_v3.joblib"
 DAY = datetime(2026, 8, 1, tzinfo=UTC)
 
 

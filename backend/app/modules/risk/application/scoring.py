@@ -18,9 +18,12 @@ Insider risk score
 Threat prioritisation
     A weighted sum is deliberately conservative: a single critical signal in
     one component moves the score only by that component's weight. So the
-    queue is ordered by `priority`, the higher of the score and the strongest
-    live signal (0.8 x its severity), so one serious event is never buried
-    behind people with many mild ones.
+    queue is ordered by `priority`, the higher of the score and 0.8 x the
+    day's live strength, so one serious event is never buried behind people
+    with many mild ones. Today's signals combine with each other, because a
+    quiet data theft shows up as several medium signals on one day rather
+    than one loud one; older signals are weighed one at a time, so a run of
+    mild days never adds up into an alert by itself.
 
 Trend
     Today's score minus the average of the previous seven days' scores.
@@ -93,6 +96,7 @@ def score_employee(
     day = day_start(day)
 
     live: dict[RiskComponent, list[tuple[float, RiskSignal]]] = {c: [] for c in RiskComponent}
+    today: list[float] = []
     for signal in signals:
         age = (day - day_start(signal.day)).days
         historical = signal.component == RiskComponent.HISTORICAL_SECURITY_EVENTS
@@ -101,6 +105,8 @@ def score_employee(
             continue  # future signals never leak into the past
         half_life = settings.historical_half_life_days if historical else settings.half_life_days
         live[signal.component].append((decayed(signal.severity, age, half_life), signal))
+        if age == 0 and not historical:
+            today.append(signal.severity)
 
     components = {
         component: round(combine(weight for weight, _ in entries), 1)
@@ -109,10 +115,14 @@ def score_employee(
     score = round(sum(settings.weights[c] * v for c, v in components.items()), 1)
 
     ranked = sorted((entry for entries in live.values() for entry in entries), key=lambda e: -e[0])
+    # Today's signals count together: a quiet theft shows up as several medium
+    # signals on one day, not as one loud one. Older signals stay individual,
+    # so a run of mild days does not add up into an alert on its own.
     strongest_live = max(
         (w for w, s in ranked if s.component != RiskComponent.HISTORICAL_SECURITY_EVENTS),
         default=0.0,
     )
+    combined_live = max(strongest_live, combine(today))
     contributions = {c: settings.weights[c] * v for c, v in components.items()}
     dominant = max(contributions, key=contributions.get) if score > 0 else None
     recent = list(previous_scores)[-7:]
@@ -138,5 +148,5 @@ def score_employee(
         ],
         dominant_component=dominant,
         trend=round(score - statistics.fmean(recent), 1) if recent else None,
-        priority=round(max(score, settings.priority_signal_factor * strongest_live), 1),
+        priority=round(max(score, settings.priority_signal_factor * combined_live), 1),
     )

@@ -12,5 +12,5 @@ PROJECT_ROOT = Path(__file__).resolve().parents[4]
 
 os.environ.setdefault(
     "ITBIS_MODEL_PATH",
-    str(PROJECT_ROOT / "ml_model" / "itbis_behavior_model_v2.joblib"),
+    str(PROJECT_ROOT / "ml_model" / "itbis_behavior_model_v3.joblib"),
 )

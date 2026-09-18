@@ -48,7 +48,7 @@ def test_default_path_points_at_the_repo_ml_model_dir(unpatched_paths):
     ms, _ = unpatched_paths
     resolved = Path(ms.DEFAULT_ARTIFACT_PATH)
     assert resolved.parent.name == "ml_model"
-    assert resolved.name == "itbis_behavior_model_v2.joblib"
+    assert resolved.name == "itbis_behavior_model_v3.joblib"
     # The checked-in artifact must actually be there.
     assert resolved.is_file(), f"model artifact missing at {resolved}"
 

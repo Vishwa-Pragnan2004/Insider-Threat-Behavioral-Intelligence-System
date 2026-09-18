@@ -134,7 +134,7 @@ class FakeResultStore(IAnomalyResultStore):
 
 @pytest.fixture(scope="module")
 def model_service() -> ModelService:
-    artifact = PROJECT_ROOT / "ml_model" / "itbis_behavior_model_v2.joblib"
+    artifact = PROJECT_ROOT / "ml_model" / "itbis_behavior_model_v3.joblib"
     return ModelService(artifact_path=str(artifact))
 
 
@@ -336,7 +336,7 @@ async def test_detect_normal_activity_scores_lower_than_extreme(
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         pkg = joblib.load(
-            r"C:\Users\vishw\Desktop\spring\2\project2\ml_model\itbis_behavior_model_v2.joblib"
+            r"C:\Users\vishw\Desktop\spring\2\project2\ml_model\itbis_behavior_model_v3.joblib"
         )
     global_means = pkg["global_means"]
     global_stds = pkg["global_stds"]

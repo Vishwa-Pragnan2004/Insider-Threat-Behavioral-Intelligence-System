@@ -109,7 +109,7 @@ async def test_a_high_priority_day_raises_one_explained_alert():
     assert alert.idempotency_key == risk_alert_key("jane", "2010-10-29")
     assert alert.anomaly_result_id is None
     assert alert.categories == ["ABNORMAL_DATA_DOWNLOAD", "UNUSUAL_LOGIN_TIME"]
-    assert alert.severity == AlertSeverity.HIGH and alert.priority == 64.0
+    assert alert.severity == AlertSeverity.HIGH and alert.priority == 74.4
     assert alert.title == "High insider risk: Abnormal data download / upload, Unusual login time"
     assert alert.employee_risk_score == score.score
     assert [f.severity for f in alert.findings] == [80.0, 65.0]
@@ -156,7 +156,7 @@ async def test_open_alert_is_refreshed_as_evidence_grows_but_not_once_picked_up(
         score_employee("jane", DAY, signals_from_findings(more)), more
     )
     assert not created and alerts.content_updates == 1
-    assert alert.priority == 76.0 and len(alert.findings) == 2
+    assert alert.priority == 79.2 and len(alert.findings) == 2
     assert alert.severity == AlertSeverity.HIGH
 
     alert.status = AlertStatus.IN_PROGRESS

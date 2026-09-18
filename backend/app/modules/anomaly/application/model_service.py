@@ -1,7 +1,7 @@
 """
 ITBIS — Anomaly Module: ModelService
 
-Owns the loaded `itbis_behavior_model_v2.joblib` artifact for the
+Owns the loaded `itbis_behavior_model_v3.joblib` artifact for the
 lifetime of the process.  Loads the artifact lazily, validates it
 against the Phase 4 feature schema, and exposes the two operations
 the rest of the module needs:
@@ -46,7 +46,7 @@ _PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[5]
 
 DEFAULT_ARTIFACT_PATH = os.environ.get(
     "ITBIS_MODEL_PATH",
-    str(_PROJECT_ROOT / "ml_model" / "itbis_behavior_model_v2.joblib"),
+    str(_PROJECT_ROOT / "ml_model" / "itbis_behavior_model_v3.joblib"),
 )
 
 REQUIRED_ARTIFACT_KEYS = {

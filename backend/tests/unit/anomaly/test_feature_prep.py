@@ -22,7 +22,7 @@ PROJECT_ROOT = Path(os.environ["ITBIS_MODEL_PATH"]).parent.parent
 
 @pytest.fixture(scope="module")
 def artifact():
-    artifact = PROJECT_ROOT / "ml_model" / "itbis_behavior_model_v2.joblib"
+    artifact = PROJECT_ROOT / "ml_model" / "itbis_behavior_model_v3.joblib"
     svc = ModelService(artifact_path=str(artifact))
     return svc.get_artifact()
 
