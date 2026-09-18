@@ -33,6 +33,9 @@ import { listAlerts, acknowledgeAlert, updateAlertStatus, generateAlerts } from 
 import type { Alert as AlertType, AlertDeviation, AlertListParams } from '../../types/alert';
 import { RiskScoreChip } from '../dashboards/shared';
 import { CategoryChip, EmployeeLink, categoryLabel, componentLabel, formatDay, useRiskModel } from '../risk/riskShared';
+import { getAlertVerdicts, getVerdictStats } from '../../api/feedbackService';
+import VerdictDialog from './VerdictDialog';
+import { VERDICT_LABELS, VerdictChip } from './verdictShared';
 import { useAuth } from '../../hooks/useAuth';
 import { hasPermission } from '../../utils/permissions';
 
@@ -81,6 +84,8 @@ export default function AlertsPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selectedAlert, setSelectedAlert] = useState<AlertType | null>(null);
   const [snack, setSnack] = useState<{ open: boolean; msg: string; severity: 'success' | 'error' }>({ open: false, msg: '', severity: 'success' });
+  const [verdictOpen, setVerdictOpen] = useState(false);
+  const canJudge = hasPermission(user, 'alerts:update');
 
   const params: AlertListParams = {
     ...(filters.severity && { severity: filters.severity }),
@@ -92,6 +97,19 @@ export default function AlertsPage() {
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['alerts', params],
     queryFn: () => listAlerts(params),
+  });
+
+  // What an analyst already decided about the alert open in the drawer.
+  const { data: verdicts } = useQuery({
+    queryKey: ['verdicts', selectedAlert?.id],
+    queryFn: () => getAlertVerdicts(selectedAlert!.id),
+    enabled: Boolean(selectedAlert),
+  });
+
+  // How often the system has been right, by the team's own decisions.
+  const { data: verdictStats } = useQuery({
+    queryKey: ['verdict-stats'],
+    queryFn: () => getVerdictStats(),
   });
 
   const ackMutation = useMutation({
@@ -148,7 +166,20 @@ export default function AlertsPage() {
         title="Alerts"
         subtitle="Monitor and triage security alerts"
         actions={
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            {/* Precision as measured by this team's own calls, not by a benchmark. */}
+            {verdictStats && verdictStats.precision !== null && (
+              <Tooltip
+                title={`${verdictStats.threats} of ${verdictStats.threats + verdictStats.benign} judged alerts were real threats. ${verdictStats.trainable} labelled days available for training.`}
+              >
+                <Chip
+                  label={`Precision ${(verdictStats.precision * 100).toFixed(0)}%`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ fontWeight: 600 }}
+                />
+              </Tooltip>
+            )}
             <Button
               startIcon={generateMutation.isPending ? <CircularProgress size={16} /> : <AutoAwesome />}
               onClick={() => generateMutation.mutate()}
@@ -485,8 +516,27 @@ export default function AlertsPage() {
 
                 <Divider />
 
+                {/* What this turned out to be */}
+                <Box>
+                  <Typography variant="caption" color="text.secondary">VERDICT</Typography>
+                  {verdicts?.current ? (
+                    <Box sx={{ mt: 0.5 }}>
+                      <VerdictChip verdict={verdicts.current.verdict} />
+                      <Typography variant="body2" sx={{ mt: 0.75 }}>
+                        {verdicts.current.rationale}
+                      </Typography>
+                      <Typography variant="caption" color="text.disabled">
+                        {verdicts.current.decided_by} · {new Date(verdicts.current.decided_at).toLocaleString()}
+                        {verdicts.history.length > 1 && ` · revised ${verdicts.history.length - 1}×`}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">Not judged yet</Typography>
+                  )}
+                </Box>
+
                 {/* Quick Actions */}
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
                   {selectedAlert.status === 'OPEN' && (
                     <Button
                       variant="outlined"
@@ -497,34 +547,52 @@ export default function AlertsPage() {
                       Acknowledge
                     </Button>
                   )}
-                  {selectedAlert.status !== 'RESOLVED' && selectedAlert.status !== 'FALSE_POSITIVE' && (
+                  {canJudge && (
                     <Button
-                      variant="outlined"
+                      variant="contained"
                       size="small"
-                      color="success"
-                      onClick={() => statusMutation.mutate({ alertId: selectedAlert.id, status: 'RESOLVED' })}
-                      disabled={statusMutation.isPending}
+                      onClick={() => setVerdictOpen(true)}
                     >
-                      Mark Resolved
+                      {verdicts?.current ? 'Change verdict' : 'Record verdict'}
                     </Button>
                   )}
-                  {selectedAlert.status !== 'FALSE_POSITIVE' && (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      color="inherit"
-                      onClick={() => statusMutation.mutate({ alertId: selectedAlert.id, status: 'FALSE_POSITIVE' })}
-                      disabled={statusMutation.isPending}
-                    >
-                      Mark False Positive
-                    </Button>
-                  )}
+                  {/* Closing without a verdict stays possible — duplicates, wrong
+                      team — but it is deliberately the quieter option, and it
+                      teaches the system nothing. */}
+                  {canJudge
+                    && selectedAlert.status !== 'RESOLVED'
+                    && selectedAlert.status !== 'FALSE_POSITIVE'
+                    && (
+                      <Button
+                        size="small"
+                        color="inherit"
+                        onClick={() => statusMutation.mutate({ alertId: selectedAlert.id, status: 'RESOLVED' })}
+                        disabled={statusMutation.isPending}
+                        sx={{ textTransform: 'none', color: 'text.secondary' }}
+                      >
+                        Close without a verdict
+                      </Button>
+                    )}
                 </Box>
               </Stack>
             </>
           )}
         </Box>
       </Drawer>
+
+      {selectedAlert && (
+        <VerdictDialog
+          alert={selectedAlert}
+          open={verdictOpen}
+          revising={Boolean(verdicts?.current)}
+          onClose={() => setVerdictOpen(false)}
+          onRecorded={(updated, verdict) => {
+            setVerdictOpen(false);
+            setSelectedAlert(updated);
+            setSnack({ open: true, msg: `Recorded: ${VERDICT_LABELS[verdict]}`, severity: 'success' });
+          }}
+        />
+      )}
 
       <Snackbar
         open={snack.open}

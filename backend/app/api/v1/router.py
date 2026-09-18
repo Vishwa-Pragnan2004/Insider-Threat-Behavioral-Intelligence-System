@@ -14,6 +14,7 @@ from app.modules.anomaly.presentation.router import router as anomaly_router
 from app.modules.behavioral.presentation.router import router as behavioral_router
 from app.modules.dashboards.presentation.router import router as dashboards_router
 from app.modules.employees.presentation.router import router as employees_router
+from app.modules.feedback.presentation.router import router as feedback_router
 from app.modules.identity.presentation.agent_router import (
     router as agent_devices_router,
 )
@@ -69,6 +70,7 @@ api_v1_router.include_router(
     investigations_router, prefix="/investigations", tags=["Investigations"]
 )
 api_v1_router.include_router(reporting_router, prefix="/reports", tags=["Reports"])
+api_v1_router.include_router(feedback_router, prefix="/feedback", tags=["Analyst Feedback"])
 api_v1_router.include_router(
     dashboards_router, prefix="/dashboards", tags=["Dashboards"]
 )
