@@ -1,0 +1,26 @@
+# Applies to the backend image build, whose context is the repo root (it
+# needs both backend/ and ml_model/ — see backend/Dockerfile). Everything
+# below is either irrelevant to the backend or, for archive/ and data/,
+# large enough to make every build slow if sent to the Docker daemon.
+
+.git/
+archive/
+data/
+frontend/node_modules/
+frontend/dist/
+backend/venv/
+backend/.venv/
+**/__pycache__/
+**/*.pyc
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/tests/
+agent/venv/
+agent/.venv/
+agent/**/__pycache__/
+.env
+.env.*
+*.log

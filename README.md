@@ -182,10 +182,8 @@ Profiling    Detection
 
 ### Prerequisites
 
-- Docker Desktop ≥ 4.x
-- Docker Compose v2
-- Node.js 20+
-- Python 3.11+
+- Docker Desktop >= 4.x with Compose v2
+- For local (non-Docker) backend/frontend development: Node.js 20+ and Python 3.11+
 
 ### 1. Clone and Configure
 
@@ -193,27 +191,64 @@ Profiling    Detection
 git clone <repository-url>
 cd project2
 cp .env.example .env
-# Edit .env with your values
 ```
 
-### 2. Start Infrastructure Services
+Generate a real `SECRET_KEY` and put it in `.env` -- the app runs with an
+insecure default otherwise, and `docker compose` refuses to start without one:
 
 ```bash
-docker compose up -d
+openssl rand -hex 32   # paste the result into SECRET_KEY= in .env
 ```
 
-### 3. Start Backend
+### 2a. Run the whole stack in Docker
+
+One command builds the backend and frontend images and brings up
+Postgres, MongoDB, Redis, the API and the web app together. The backend
+applies database migrations itself on startup.
+
+```bash
+docker compose up -d --build
+```
+
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:3000 |
+| Backend API docs | http://localhost:8000/docs |
+| Backend health | http://localhost:8000/api/v1/health |
+
+```bash
+docker compose logs -f backend   # tail logs
+docker compose down              # stop (add -v to also drop the data volumes)
+```
+
+This is the whole running system, not a dev inner loop -- code changes
+need `docker compose up -d --build` again to take effect. For hot-reload
+development, use 2b instead.
+
+### 2b. Run only the databases in Docker, backend/frontend on the host
+
+Faster iteration: the backend restarts on save via `--reload`, and Vite
+hot-reloads the frontend.
+
+```bash
+docker compose up -d postgres mongodb redis
+```
+
+**Backend:**
 
 ```bash
 cd backend
 python -m venv venv
-venv\Scripts\activate       # Windows
-# source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # Linux/Mac
 pip install -r requirements.txt
+python -m alembic upgrade head
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 4. Start Frontend
+(`start-backend.ps1` in the repo root does this in one step on Windows.)
+
+**Frontend:**
 
 ```bash
 cd frontend
@@ -221,16 +256,24 @@ npm install
 npm run dev
 ```
 
-### 5. Verify Health
+(`start-frontend.ps1` does this in one step.)
+
+Frontend: http://localhost:5173 (Vite proxies `/api` to the backend)
+Backend API Docs: http://localhost:8000/docs
+Backend ReDoc: http://localhost:8000/redoc
+
+### 3. Verify Health
 
 ```bash
 curl http://localhost:8000/api/v1/health
 curl http://localhost:8000/api/v1/health/ready
 ```
 
-Frontend: http://localhost:5173  
-Backend API Docs: http://localhost:8000/docs  
-Backend ReDoc: http://localhost:8000/redoc
+`/health/ready`'s per-dependency checks are still a placeholder from early
+development -- each currently reports "ok" without actually pinging
+anything, including for two services (`elasticsearch`, `kafka`) that
+aren't part of this stack at all (see the note in `docker-compose.yml`).
+Use `docker compose ps` for real container health instead.
 
 ---
 

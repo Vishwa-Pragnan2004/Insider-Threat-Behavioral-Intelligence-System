@@ -1,0 +1,8 @@
+# Scripts that run inside Linux containers must keep LF endings even when
+# checked out on Windows (this repo's usual dev environment) — a CRLF
+# shebang line breaks `exec` inside the container with a cryptic
+# "no such file or directory".
+*.sh text eol=lf
+Dockerfile text eol=lf
+Dockerfile.* text eol=lf
+*.conf text eol=lf
